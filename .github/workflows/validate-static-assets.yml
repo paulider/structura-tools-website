@@ -1,0 +1,63 @@
+name: Validate static assets
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate local HTML references and image signatures
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import glob
+          import os
+          import re
+          import sys
+          from urllib.parse import urlsplit
+
+          errors = []
+          refs = set()
+          for html in glob.glob('*.html'):
+              text = open(html, encoding='utf-8').read()
+              for ref in re.findall(r'(?:src|href)=["\']([^"\']+)', text):
+                  if ref.startswith(('http://', 'https://', 'mailto:', '#', 'data:')):
+                      continue
+                  clean = urlsplit(ref).path
+                  if not clean:
+                      continue
+                  path = clean.lstrip('/')
+                  if path.endswith('/'):
+                      path += 'index.html'
+                  refs.add((html, path))
+
+          for html, path in sorted(refs):
+              if not os.path.isfile(path):
+                  errors.append(f'{html}: missing local asset/page: {path}')
+
+          for path in glob.glob('assets/*'):
+              if not os.path.isfile(path):
+                  continue
+              ext = os.path.splitext(path)[1].lower()
+              if ext not in {'.png', '.jpg', '.jpeg', '.webp'}:
+                  continue
+              data = open(path, 'rb').read(16)
+              valid = True
+              if ext == '.png':
+                  valid = data.startswith(b'\x89PNG\r\n\x1a\n')
+              elif ext in {'.jpg', '.jpeg'}:
+                  valid = data.startswith(b'\xff\xd8\xff')
+              elif ext == '.webp':
+                  valid = data.startswith(b'RIFF') and data[8:12] == b'WEBP'
+              if not valid:
+                  errors.append(f'invalid image signature: {path}')
+
+          if errors:
+              print('\n'.join(errors))
+              sys.exit(1)
+          print(f'Validated {len(refs)} local references and all image signatures.')
+          PY
