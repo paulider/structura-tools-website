@@ -27,7 +27,7 @@ jobs:
       - name: Install image decoder
         run: python -m pip install --disable-pip-version-check pillow
 
-      - name: Decode WebP brand assets and write stable PNGs
+      - name: Decode brand WebPs to static Safari-safe PNGs
         shell: bash
         run: |
           python - <<'PY'
@@ -51,18 +51,25 @@ jobs:
                   raise SystemExit(f'Missing required brand asset: {src}')
 
               with Image.open(src) as im:
-                  im.load()  # force a complete decode; truncated/corrupt streams fail here
-                  has_alpha = im.mode in ('RGBA', 'LA') or 'transparency' in im.info
-                  out = im.convert('RGBA' if has_alpha else 'RGB')
+                  # Some supplied WebPs contain malformed animation/extra-frame metadata.
+                  # Safari can render that as a corrupted band at the bottom. We deliberately
+                  # decode ONLY the first visual frame and serialize it as a static PNG.
+                  im.seek(0)
+                  frame = im.copy()
+                  frame.load()
+                  has_alpha = frame.mode in ('RGBA', 'LA') or 'transparency' in frame.info
+                  out = frame.convert('RGBA' if has_alpha else 'RGB')
                   out.save(dst, format='PNG', optimize=True)
 
-              # Verify the generated file by decoding it again from disk.
+              # Verify the generated artifact from disk, forcing a complete static decode.
               with Image.open(dst) as check:
                   check.load()
-                  if check.format != 'PNG' or check.width < 1 or check.height < 1:
-                      raise SystemExit(f'Generated invalid PNG: {dst}')
+                  if check.format != 'PNG' or getattr(check, 'n_frames', 1) != 1:
+                      raise SystemExit(f'Generated non-static or invalid PNG: {dst}')
+                  if check.width < 1 or check.height < 1:
+                      raise SystemExit(f'Generated empty PNG: {dst}')
 
-              print(f'Normalized {src} -> {dst}')
+              print(f'Normalized frame 0: {src} -> {dst}')
           PY
 
       - name: Point public pages at stable image formats
@@ -93,7 +100,7 @@ jobs:
       - name: Commit normalized assets
         shell: bash
         run: |
-          if git diff --quiet && [ -z "$(git status --porcelain assets/*.png 2>/dev/null)" ]; then
+          if git diff --quiet && [ -z "$(git status --porcelain assets/*-safe.png 2>/dev/null)" ]; then
             echo 'No normalization changes required.'
             exit 0
           fi
