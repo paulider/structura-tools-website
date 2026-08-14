@@ -6,6 +6,8 @@ on:
     paths:
       - '.github/workflows/normalize-brand-assets.yml'
       - 'assets/*.webp'
+      - 'assets/floor-wall-icon.jpg'
+      - 'assets/structura-logo-20260813.png'
   workflow_dispatch:
 
 permissions:
@@ -24,52 +26,58 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install image decoder
+      - name: Install image verifier
         run: python -m pip install --disable-pip-version-check pillow
 
-      - name: Decode brand WebPs to static Safari-safe PNGs
+      - name: Extract static Safari-safe brand assets
         shell: bash
         run: |
+          set -euo pipefail
+
+          # ffmpeg is preinstalled on the GitHub Ubuntu runner. Unlike a browser, it
+          # serializes one decoded visual frame to a plain static PNG, removing broken
+          # WebP animation/alpha container metadata that can corrupt Safari rendering.
+          extract_png() {
+            src="$1"
+            dst="$2"
+            ffmpeg -hide_banner -loglevel error -y -i "$src" -frames:v 1 "$dst"
+          }
+
+          extract_png assets/structura-logo-official.webp assets/structura-logo-safe.png
+
+          # This supplied Floor & Wall WebP has malformed extra-frame metadata. Prefer
+          # the approved artwork if ffmpeg can recover frame 0; otherwise use the stable
+          # raster copy already in the repository rather than serving a corrupt stream.
+          if ! extract_png assets/floor-wall-logo-official.webp assets/floor-wall-logo-safe.png; then
+            echo 'WARNING: malformed Floor & Wall WebP; using verified JPEG source.'
+            extract_png assets/floor-wall-icon.jpg assets/floor-wall-logo-safe.png
+          fi
+
+          extract_png assets/road-click.webp assets/road-click-safe.png
+          extract_png assets/buildings.webp assets/buildings-safe.png
+
           python - <<'PY'
           from pathlib import Path
           from PIL import Image, ImageFile
 
           ImageFile.LOAD_TRUNCATED_IMAGES = False
+          required = [
+              Path('assets/structura-logo-safe.png'),
+              Path('assets/floor-wall-logo-safe.png'),
+              Path('assets/road-click-safe.png'),
+              Path('assets/buildings-safe.png'),
+          ]
 
-          assets = Path('assets')
-          conversions = {
-              'structura-logo-official.webp': 'structura-logo-safe.png',
-              'floor-wall-logo-official.webp': 'floor-wall-logo-safe.png',
-              'road-click.webp': 'road-click-safe.png',
-              'buildings.webp': 'buildings-safe.png',
-          }
-
-          for src_name, dst_name in conversions.items():
-              src = assets / src_name
-              dst = assets / dst_name
-              if not src.exists():
-                  raise SystemExit(f'Missing required brand asset: {src}')
-
-              with Image.open(src) as im:
-                  # Some supplied WebPs contain malformed animation/extra-frame metadata.
-                  # Safari can render that as a corrupted band at the bottom. We deliberately
-                  # decode ONLY the first visual frame and serialize it as a static PNG.
-                  im.seek(0)
-                  frame = im.copy()
-                  frame.load()
-                  has_alpha = frame.mode in ('RGBA', 'LA') or 'transparency' in frame.info
-                  out = frame.convert('RGBA' if has_alpha else 'RGB')
-                  out.save(dst, format='PNG', optimize=True)
-
-              # Verify the generated artifact from disk, forcing a complete static decode.
-              with Image.open(dst) as check:
-                  check.load()
-                  if check.format != 'PNG' or getattr(check, 'n_frames', 1) != 1:
-                      raise SystemExit(f'Generated non-static or invalid PNG: {dst}')
-                  if check.width < 1 or check.height < 1:
-                      raise SystemExit(f'Generated empty PNG: {dst}')
-
-              print(f'Normalized frame 0: {src} -> {dst}')
+          for path in required:
+              with Image.open(path) as im:
+                  im.load()
+                  if im.format != 'PNG':
+                      raise SystemExit(f'Not a PNG: {path}')
+                  if getattr(im, 'n_frames', 1) != 1:
+                      raise SystemExit(f'Not static: {path}')
+                  if im.width < 1 or im.height < 1:
+                      raise SystemExit(f'Empty image: {path}')
+                  print(f'Verified {path}: {im.width}x{im.height}, mode={im.mode}')
           PY
 
       - name: Point public pages at stable image formats
@@ -80,7 +88,9 @@ jobs:
 
           replacements = {
               '/assets/structura-logo-official.webp': '/assets/structura-logo-safe.png',
+              '/assets/structura-logo-20260813.png': '/assets/structura-logo-safe.png',
               '/assets/floor-wall-logo-official.webp': '/assets/floor-wall-logo-safe.png',
+              '/assets/floor-wall-icon.jpg': '/assets/floor-wall-logo-safe.png',
               '/assets/road-click.webp': '/assets/road-click-safe.png',
               '/assets/buildings.webp': '/assets/buildings-safe.png',
               '/assets/pau-cols-founder.webp': '/assets/pau-cols-final.jpg',
