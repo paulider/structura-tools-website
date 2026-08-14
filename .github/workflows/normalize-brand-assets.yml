@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/normalize-brand-assets.yml'
       - 'assets/*.webp'
+      - 'assets/structura-logo.png'
       - 'assets/floor-wall-icon.jpg'
   workflow_dispatch:
 
@@ -38,11 +39,14 @@ jobs:
           ImageFile.LOAD_TRUNCATED_IMAGES = False
           assets = Path('assets')
 
-          # Only use sources that can be decoded deterministically. The supplied
-          # floor-wall-logo-official.webp has malformed extra-frame metadata, so it is
-          # intentionally NOT used as a production source.
+          # Canonical production sources. Do not derive Structura from
+          # structura-logo-official.webp: that raster contains visible corrupted
+          # pixels in the lower portion of the artwork. The previously approved
+          # structura-logo.png is the canonical clean source.
+          # floor-wall-logo-official.webp also contains malformed frame metadata,
+          # so Floor & Wall uses its stable raster source.
           sources = {
-              'structura-logo-official.webp': 'structura-logo-safe.png',
+              'structura-logo.png': 'structura-logo-clean.png',
               'floor-wall-icon.jpg': 'floor-wall-logo-safe.png',
               'road-click.webp': 'road-click-safe.png',
               'buildings.webp': 'buildings-safe.png',
@@ -77,8 +81,9 @@ jobs:
           from pathlib import Path
 
           replacements = {
-              '/assets/structura-logo-official.webp': '/assets/structura-logo-safe.png',
-              '/assets/structura-logo-20260813.png': '/assets/structura-logo-safe.png',
+              '/assets/structura-logo-official.webp': '/assets/structura-logo-clean.png',
+              '/assets/structura-logo-20260813.png': '/assets/structura-logo-clean.png',
+              '/assets/structura-logo-safe.png': '/assets/structura-logo-clean.png',
               '/assets/floor-wall-logo-official.webp': '/assets/floor-wall-logo-safe.png',
               '/assets/floor-wall-icon.jpg': '/assets/floor-wall-logo-safe.png',
               '/assets/road-click.webp': '/assets/road-click-safe.png',
@@ -92,6 +97,8 @@ jobs:
               original = text
               for old, new in replacements.items():
                   text = text.replace(old, new)
+              # Force a fresh browser/CDN cache key for the corrected brand asset.
+              text = text.replace('v=20260814-2015', 'v=20260815-0025')
               if text != original:
                   page.write_text(text, encoding='utf-8')
                   print(f'Updated {page}')
@@ -100,12 +107,12 @@ jobs:
       - name: Commit normalized assets
         shell: bash
         run: |
-          if git diff --quiet && [ -z "$(git status --porcelain assets/*-safe.png 2>/dev/null)" ]; then
+          if git diff --quiet && [ -z "$(git status --porcelain assets/*-safe.png assets/structura-logo-clean.png 2>/dev/null)" ]; then
             echo 'No normalization changes required.'
             exit 0
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add assets/structura-logo-safe.png assets/floor-wall-logo-safe.png assets/road-click-safe.png assets/buildings-safe.png index.html road-click.html floor-wall.html buildings.html
-          git commit -m 'Use Safari-safe decoded brand assets'
+          git add assets/structura-logo-clean.png assets/floor-wall-logo-safe.png assets/road-click-safe.png assets/buildings-safe.png index.html road-click.html floor-wall.html buildings.html
+          git commit -m 'Use clean canonical Structura logo asset'
           git push
