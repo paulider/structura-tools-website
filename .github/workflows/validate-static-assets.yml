@@ -10,21 +10,41 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Validate local HTML references and image signatures
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install image decoder
+        run: python -m pip install --disable-pip-version-check pillow
+
+      - name: Validate references, full image decoding and safe public formats
         shell: bash
         run: |
-          python3 - <<'PY'
+          python - <<'PY'
           import glob
           import os
           import re
           import sys
+          from pathlib import Path
           from urllib.parse import urlsplit
+          from PIL import Image, ImageFile
 
+          ImageFile.LOAD_TRUNCATED_IMAGES = False
           errors = []
           refs = set()
+
+          public_brand_pages = {
+              'index.html',
+              'road-click.html',
+              'floor-wall.html',
+              'buildings.html',
+          }
+
           for html in glob.glob('*.html'):
               text = open(html, encoding='utf-8').read()
-              for ref in re.findall(r'(?:src|href)=["\']([^"\']+)', text):
+              local_refs = re.findall(r'(?:src|href)=["\']([^"\']+)', text)
+              for ref in local_refs:
                   if ref.startswith(('http://', 'https://', 'mailto:', '#', 'data:')):
                       continue
                   clean = urlsplit(ref).path
@@ -35,29 +55,67 @@ jobs:
                       path += 'index.html'
                   refs.add((html, path))
 
+                  if html in public_brand_pages and path.lower().endswith('.webp'):
+                      errors.append(
+                          f'{html}: direct WebP reference is forbidden on a public brand page: {path}. '
+                          'Use a decoded static PNG/JPEG asset.'
+                      )
+
           for html, path in sorted(refs):
               if not os.path.isfile(path):
                   errors.append(f'{html}: missing local asset/page: {path}')
 
-          for path in glob.glob('assets/*'):
+          # Force a complete decode of every raster image. Signature-only checks are not
+          # sufficient: malformed WebP animation/alpha metadata previously passed CI but
+          # rendered as a corrupted lower band in Safari/iOS.
+          for path in sorted(glob.glob('assets/*')):
               if not os.path.isfile(path):
                   continue
               ext = os.path.splitext(path)[1].lower()
               if ext not in {'.png', '.jpg', '.jpeg', '.webp'}:
                   continue
-              data = open(path, 'rb').read(16)
-              valid = True
-              if ext == '.png':
-                  valid = data.startswith(b'\x89PNG\r\n\x1a\n')
-              elif ext in {'.jpg', '.jpeg'}:
-                  valid = data.startswith(b'\xff\xd8\xff')
-              elif ext == '.webp':
-                  valid = data.startswith(b'RIFF') and data[8:12] == b'WEBP'
-              if not valid:
-                  errors.append(f'invalid image signature: {path}')
+              try:
+                  with Image.open(path) as im:
+                      if ext == '.webp':
+                          # Direct WebPs may remain as source assets, but frame zero must
+                          # at least decode; public pages are required to use normalized files.
+                          im.seek(0)
+                          frame = im.copy()
+                          frame.load()
+                      else:
+                          im.load()
+                      if im.width < 1 or im.height < 1:
+                          raise ValueError('zero-sized image')
+              except Exception as exc:
+                  # Source WebPs are allowed to be malformed only when they are not served
+                  # directly; normalized PNGs must always be fully valid.
+                  if ext == '.webp':
+                      print(f'WARNING source WebP requires normalization: {path}: {exc}')
+                  else:
+                      errors.append(f'failed full image decode: {path}: {exc}')
+
+          required_safe = [
+              Path('assets/structura-logo-safe.png'),
+              Path('assets/floor-wall-logo-safe.png'),
+              Path('assets/road-click-safe.png'),
+              Path('assets/buildings-safe.png'),
+              Path('assets/pau-cols-final.jpg'),
+          ]
+          for path in required_safe:
+              if not path.is_file():
+                  errors.append(f'missing required stable public asset: {path}')
+                  continue
+              try:
+                  with Image.open(path) as im:
+                      im.load()
+                      if getattr(im, 'n_frames', 1) != 1:
+                          errors.append(f'public stable asset must be static: {path}')
+              except Exception as exc:
+                  errors.append(f'invalid stable public asset: {path}: {exc}')
 
           if errors:
               print('\n'.join(errors))
               sys.exit(1)
-          print(f'Validated {len(refs)} local references and all image signatures.')
+
+          print(f'Validated {len(refs)} local references, full raster decoding, and Safari-safe public assets.')
           PY
