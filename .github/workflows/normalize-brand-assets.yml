@@ -1,0 +1,104 @@
+name: Normalize brand assets
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/normalize-brand-assets.yml'
+      - 'assets/*.webp'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  normalize-brand-assets:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install image decoder
+        run: python -m pip install --disable-pip-version-check pillow
+
+      - name: Decode WebP brand assets and write stable PNGs
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageFile
+
+          ImageFile.LOAD_TRUNCATED_IMAGES = False
+
+          assets = Path('assets')
+          conversions = {
+              'structura-logo-official.webp': 'structura-logo-safe.png',
+              'floor-wall-logo-official.webp': 'floor-wall-logo-safe.png',
+              'road-click.webp': 'road-click-safe.png',
+              'buildings.webp': 'buildings-safe.png',
+          }
+
+          for src_name, dst_name in conversions.items():
+              src = assets / src_name
+              dst = assets / dst_name
+              if not src.exists():
+                  raise SystemExit(f'Missing required brand asset: {src}')
+
+              with Image.open(src) as im:
+                  im.load()  # force a complete decode; truncated/corrupt streams fail here
+                  has_alpha = im.mode in ('RGBA', 'LA') or 'transparency' in im.info
+                  out = im.convert('RGBA' if has_alpha else 'RGB')
+                  out.save(dst, format='PNG', optimize=True)
+
+              # Verify the generated file by decoding it again from disk.
+              with Image.open(dst) as check:
+                  check.load()
+                  if check.format != 'PNG' or check.width < 1 or check.height < 1:
+                      raise SystemExit(f'Generated invalid PNG: {dst}')
+
+              print(f'Normalized {src} -> {dst}')
+          PY
+
+      - name: Point public pages at stable image formats
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              '/assets/structura-logo-official.webp': '/assets/structura-logo-safe.png',
+              '/assets/floor-wall-logo-official.webp': '/assets/floor-wall-logo-safe.png',
+              '/assets/road-click.webp': '/assets/road-click-safe.png',
+              '/assets/buildings.webp': '/assets/buildings-safe.png',
+              '/assets/pau-cols-founder.webp': '/assets/pau-cols-final.jpg',
+          }
+
+          pages = [Path('index.html'), Path('road-click.html'), Path('floor-wall.html'), Path('buildings.html')]
+          for page in pages:
+              text = page.read_text(encoding='utf-8')
+              original = text
+              for old, new in replacements.items():
+                  text = text.replace(old, new)
+              if text != original:
+                  page.write_text(text, encoding='utf-8')
+                  print(f'Updated {page}')
+          PY
+
+      - name: Commit normalized assets
+        shell: bash
+        run: |
+          if git diff --quiet && [ -z "$(git status --porcelain assets/*.png 2>/dev/null)" ]; then
+            echo 'No normalization changes required.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/structura-logo-safe.png assets/floor-wall-logo-safe.png assets/road-click-safe.png assets/buildings-safe.png index.html road-click.html floor-wall.html buildings.html
+          git commit -m 'Use Safari-safe decoded brand assets'
+          git push
