@@ -27,110 +27,63 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install image decoder
-        run: python -m pip install --disable-pip-version-check pillow
+      - name: Install image decoders
+        run: |
+          python -m pip install --disable-pip-version-check pillow
+          sudo apt-get update
+          sudo apt-get install -y webp
 
-      - name: Recover and validate current production artwork
+      - name: Normalize approved Structura artwork
         shell: bash
         run: |
-          set -euo pipefail
           python - <<'PY'
           from pathlib import Path
           from PIL import Image, ImageFile
-          import struct
 
           assets = Path('assets')
+          src = assets / 'structura-logo-approved.jpg'
+          dst = assets / 'structura-logo-current.png'
 
-          # Structura: exact NEW approved historical blob restored by SHA.
-          # It is a JPEG truncated by only four terminal bytes. Decode this source once
-          # in tolerant mode and immediately rewrite it as a strict static PNG.
-          structura_src = assets / 'structura-logo-approved.jpg'
-          structura_dst = assets / 'structura-logo-current.png'
+          # The approved historical JPEG is missing only its terminal bytes. Decode it
+          # once in tolerant mode, then rewrite and validate a strict static PNG.
           ImageFile.LOAD_TRUNCATED_IMAGES = True
-          with Image.open(structura_src) as im:
+          with Image.open(src) as im:
               im.load()
               if im.width < 1 or im.height < 1:
-                  raise SystemExit('Restored approved Structura source is empty')
-              out = im.convert('RGB')
-              out.save(structura_dst, format='PNG', optimize=True)
+                  raise SystemExit('Approved Structura source is empty')
+              im.convert('RGB').save(dst, format='PNG', optimize=True)
           ImageFile.LOAD_TRUNCATED_IMAGES = False
-          with Image.open(structura_dst) as check:
-              check.load()
-              if check.width < 1 or check.height < 1 or getattr(check, 'n_frames', 1) != 1:
-                  raise SystemExit('Normalized Structura PNG is invalid')
-              print(f'Structura current normalized: {check.width}x{check.height}, {check.mode}')
 
-          # Floor & Wall: rebuild a static WebP from the NEW official visual chunks,
-          # dropping damaged trailing/container metadata. Never use floor-wall-icon.jpg.
-          source = assets / 'floor-wall-logo-official.webp'
-          raw = source.read_bytes()
-          if len(raw) < 20 or raw[:4] != b'RIFF' or raw[8:12] != b'WEBP':
-              raise SystemExit('Floor & Wall source is not a RIFF WebP')
-
-          chunks = []
-          off = 12
-          while off + 8 <= len(raw):
-              fourcc = raw[off:off+4]
-              size = struct.unpack_from('<I', raw, off + 4)[0]
-              start = off + 8
-              end = start + size
-              if end > len(raw):
-                  print(f'Trailing damaged chunk {fourcc!r}: declared={size}, available={len(raw)-start}')
-                  break
-              payload = raw[start:end]
-              chunks.append((fourcc, payload))
-              print(f'WebP chunk {fourcc.decode("latin1")!r}: {size} bytes')
-              off = end + (size & 1)
-
-          by_name = {}
-          for name, payload in chunks:
-              by_name.setdefault(name, []).append(payload)
-
-          def pack_chunk(name, payload):
-              out = name + struct.pack('<I', len(payload)) + payload
-              if len(payload) & 1:
-                  out += b'\x00'
-              return out
-
-          body = bytearray(b'WEBP')
-          if b'VP8L' in by_name:
-              if b'VP8X' in by_name:
-                  vp8x = bytearray(by_name[b'VP8X'][0])
-                  if vp8x:
-                      vp8x[0] &= ~0x02
-                  body += pack_chunk(b'VP8X', bytes(vp8x))
-              body += pack_chunk(b'VP8L', by_name[b'VP8L'][0])
-          elif b'VP8 ' in by_name:
-              if b'VP8X' in by_name:
-                  vp8x = bytearray(by_name[b'VP8X'][0])
-                  if vp8x:
-                      vp8x[0] &= ~0x02
-                  body += pack_chunk(b'VP8X', bytes(vp8x))
-              if b'ICCP' in by_name:
-                  body += pack_chunk(b'ICCP', by_name[b'ICCP'][0])
-              if b'ALPH' in by_name:
-                  body += pack_chunk(b'ALPH', by_name[b'ALPH'][0])
-              body += pack_chunk(b'VP8 ', by_name[b'VP8 '][0])
-          else:
-              raise SystemExit(f'No recoverable Floor & Wall visual chunk. Found: {[n for n,_ in chunks]}')
-
-          recovered = b'RIFF' + struct.pack('<I', len(body)) + bytes(body)
-          recovered_path = Path('/tmp/floor-wall-recovered.webp')
-          recovered_path.write_bytes(recovered)
-          print(f'Recovered Floor & Wall static WebP: {len(recovered)} bytes')
-
-          floor_dst = assets / 'floor-wall-logo-current.png'
-          with Image.open(recovered_path) as im:
-              im.seek(0)
+          with Image.open(dst) as im:
               im.load()
-              out = im.convert('RGBA' if im.mode in ('RGBA', 'LA') or 'transparency' in im.info else 'RGB')
-              out.save(floor_dst, format='PNG', optimize=True)
-          with Image.open(floor_dst) as check:
-              check.load()
-              if check.width < 1 or check.height < 1 or getattr(check, 'n_frames', 1) != 1:
-                  raise SystemExit('Recovered Floor & Wall PNG is invalid')
-              print(f'Floor Wall current: {check.width}x{check.height}, {check.mode}')
+              if im.width != 384 or im.height != 384 or getattr(im, 'n_frames', 1) != 1:
+                  raise SystemExit(f'Unexpected Structura output: {im.size}, frames={getattr(im,"n_frames",1)}')
+              print(f'Structura current: {im.width}x{im.height}, {im.mode}')
+          PY
 
+      - name: Decode official current Floor Wall artwork with libwebp
+        shell: bash
+        run: |
+          set -euo pipefail
+          webpinfo -diag assets/floor-wall-logo-official.webp || true
+          dwebp assets/floor-wall-logo-official.webp -png -o assets/floor-wall-logo-current.png
+          python - <<'PY'
+          from PIL import Image
+          path = 'assets/floor-wall-logo-current.png'
+          with Image.open(path) as im:
+              im.load()
+              if im.width != 192 or im.height != 192 or getattr(im, 'n_frames', 1) != 1:
+                  raise SystemExit(f'Unexpected Floor & Wall output: {im.size}, frames={getattr(im,"n_frames",1)}')
+              print(f'Floor Wall current: {im.width}x{im.height}, {im.mode}')
+          PY
+
+      - name: Normalize Road Click and Buildings
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          assets = Path('assets')
           for src_name, dst_name in {
               'road-click.webp': 'road-click-safe.png',
               'buildings.webp': 'buildings-safe.png',
@@ -138,8 +91,12 @@ jobs:
               with Image.open(assets / src_name) as im:
                   im.seek(0)
                   im.load()
-                  out = im.convert('RGBA' if im.mode in ('RGBA', 'LA') or 'transparency' in im.info else 'RGB')
+                  out = im.convert('RGBA' if im.mode in ('RGBA','LA') or 'transparency' in im.info else 'RGB')
                   out.save(assets / dst_name, format='PNG', optimize=True)
+              with Image.open(assets / dst_name) as check:
+                  check.load()
+                  if getattr(check, 'n_frames', 1) != 1:
+                      raise SystemExit(f'Invalid static asset: {dst_name}')
           PY
 
       - name: Update public references
@@ -170,14 +127,14 @@ jobs:
               original = text
               for old, new in replacements.items():
                   text = text.replace(old, new)
-              text = re.sub(r'v=202608(?:13|14|15)-[0-9A-Za-z-]+', 'v=20260815-0505', text)
-              text = re.sub(r'content="2026-08-(?:14|15)-[^"]+"', 'content="2026-08-15-approved-brand-0505"', text)
+              text = re.sub(r'v=202608(?:13|14|15)-[0-9A-Za-z-]+', 'v=20260815-0515', text)
+              text = re.sub(r'content="2026-08-(?:14|15)-[^"]+"', 'content="2026-08-15-approved-brand-0515"', text)
               if text != original:
                   page.write_text(text, encoding='utf-8')
                   print(f'Updated {page}')
           PY
 
-      - name: Block legacy and broken visual fallbacks
+      - name: Block legacy and broken logo references
         shell: bash
         run: |
           python - <<'PY'
@@ -188,6 +145,7 @@ jobs:
               '/assets/structura-logo-safe.png',
               '/assets/structura-logo-20260813.jpg',
               '/assets/structura-logo-approved.jpg',
+              '/assets/structura-logo-official.webp',
               '/assets/floor-wall-icon.jpg',
               '/assets/floor-wall-logo-safe.png',
               '/assets/floor-wall-logo-official.webp',
@@ -200,10 +158,10 @@ jobs:
                       errors.append(f'{page}: legacy/broken logo reference {asset}')
           if errors:
               raise SystemExit('\n'.join(errors))
-          print('No public page references legacy/broken Structura/Floor & Wall artwork.')
+          print('No public page references legacy or damaged brand artwork.')
           PY
 
-      - name: Commit current brand assets
+      - name: Commit normalized current assets
         shell: bash
         run: |
           if git diff --quiet && [ -z "$(git status --porcelain assets/structura-logo-current.png assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png 2>/dev/null)" ]; then
@@ -213,5 +171,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add assets/structura-logo-current.png assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png index.html road-click.html floor-wall.html buildings.html
-          git commit -m 'Use normalized approved current Structura and Floor Wall logos'
+          git commit -m 'Use normalized current Structura and Floor Wall logos'
           git push
