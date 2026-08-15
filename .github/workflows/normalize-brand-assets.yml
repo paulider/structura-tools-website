@@ -1,4 +1,4 @@
-name: Normalize brand assets
+name: Validate canonical brand assets
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
       - '.github/workflows/normalize-brand-assets.yml'
       - 'scripts/normalize_brand.py'
       - 'assets/structura-logo-final.png'
+      - 'assets/floor-wall-logo-current.png'
       - 'assets/road-click.webp'
       - 'assets/buildings.webp'
       - '*.html'
@@ -16,19 +17,13 @@ permissions:
   contents: write
 
 jobs:
-  normalize-brand-assets:
+  validate-brand-assets:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - uses: actions/checkout@v4
-        with:
-          repository: paulider/Structura-Floor-Walls
-          path: floor-source
-          fetch-depth: 1
 
       - uses: actions/setup-python@v5
         with:
@@ -37,59 +32,93 @@ jobs:
       - name: Install image decoder
         run: python -m pip install --disable-pip-version-check pillow
 
-      - name: Validate definitive Structura logo
+      - name: Validate user-approved canonical logos
         run: |
           python - <<'PY'
           from pathlib import Path
           from PIL import Image, ImageStat
-          p=Path('assets/structura-logo-final.png')
-          with Image.open(p) as im:
-              im.load(); rgba=im.convert('RGBA')
-              if rgba.width < 256 or rgba.height < 256: raise SystemExit(f'Logo too small: {rgba.size}')
-              if getattr(im,'n_frames',1) != 1: raise SystemExit('Logo must be static')
-              if max(ImageStat.Stat(rgba.convert('RGB')).var) < 25: raise SystemExit('Logo appears blank')
-              lo,hi=rgba.getchannel('A').getextrema()
-              if lo == 255: raise SystemExit('Logo must preserve transparency')
-              print(f'Structura final: {rgba.size}, alpha={lo}-{hi}, bytes={p.stat().st_size}')
+
+          canonical = {
+              Path('assets/structura-logo-final.png'): 'Structura',
+              Path('assets/floor-wall-logo-current.png'): 'Floor & Wall',
+          }
+
+          for path, label in canonical.items():
+              if not path.is_file():
+                  raise SystemExit(f'Missing canonical {label} logo: {path}')
+              with Image.open(path) as im:
+                  im.load()
+                  rgba = im.convert('RGBA')
+                  if rgba.width < 256 or rgba.height < 256:
+                      raise SystemExit(f'{label} logo too small: {rgba.size}')
+                  if getattr(im, 'n_frames', 1) != 1:
+                      raise SystemExit(f'{label} logo must be static')
+                  if max(ImageStat.Stat(rgba.convert('RGB')).var) < 25:
+                      raise SystemExit(f'{label} logo appears blank')
+                  lo, hi = rgba.getchannel('A').getextrema()
+                  if lo == 255:
+                      raise SystemExit(f'{label} logo must preserve transparency')
+                  print(f'{label}: {rgba.size}, alpha={lo}-{hi}, bytes={path.stat().st_size}')
           PY
 
-      - name: Recover current Floor Wall logo
-        run: |
-          rm -rf /tmp/floor-wall-rbz && mkdir -p /tmp/floor-wall-rbz
-          unzip -q floor-source/Structura_Floor_Wall_V3_2_0_vray_clone_variants_DEV.rbz -d /tmp/floor-wall-rbz
-          python - <<'PY'
-          from pathlib import Path
-          from PIL import Image
-          src=Path('/tmp/floor-wall-rbz/structura_floor_wall/icons/floor_wall_logo.png')
-          dst=Path('assets/floor-wall-logo-current.png')
-          with Image.open(src) as im:
-              im.load(); im.convert('RGBA').save(dst,'PNG',optimize=True)
-          with Image.open(dst) as im:
-              im.load(); print('Floor Wall current:',im.size,im.mode)
-          PY
-
-      - name: Normalize Road Click and Buildings
+      - name: Normalize Road Click and Buildings only
         run: |
           python - <<'PY'
           from pathlib import Path
           from PIL import Image
-          a=Path('assets')
-          for s,d in {'road-click.webp':'road-click-safe.png','buildings.webp':'buildings-safe.png'}.items():
-              with Image.open(a/s) as im:
-                  im.seek(0); im.load(); im.convert('RGBA' if im.mode in ('RGBA','LA') or 'transparency' in im.info else 'RGB').save(a/d,'PNG',optimize=True)
+          a = Path('assets')
+          for src, dst in {
+              'road-click.webp': 'road-click-safe.png',
+              'buildings.webp': 'buildings-safe.png',
+          }.items():
+              with Image.open(a / src) as im:
+                  im.seek(0)
+                  im.load()
+                  out = im.convert('RGBA' if im.mode in ('RGBA', 'LA') or 'transparency' in im.info else 'RGB')
+                  out.save(a / dst, 'PNG', optimize=True)
           PY
 
-      - name: Normalize and verify immutable Structura Tools brand
+      - name: Normalize references and verify immutable brand contract
         run: python scripts/normalize_brand.py
 
-      - name: Commit normalized brand system
+      - name: Reject legacy logo references
         run: |
-          if git diff --quiet && [ -z "$(git status --porcelain assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png 2>/dev/null)" ]; then
+          python - <<'PY'
+          from pathlib import Path
+
+          forbidden = {
+              'structura-logo-official.webp',
+              'structura-logo-current.png',
+              'structura-logo-approved.jpg',
+              'structura-logo-20260813.jpg',
+              'structura-logo-20260813.png',
+              'structura-logo-safe.png',
+              'structura-logo-clean.png',
+              'structura-logo.png',
+              'floor-wall-logo-official.webp',
+              'floor-wall-logo-safe.png',
+              'floor-wall-icon.jpg',
+          }
+          errors = []
+          for page in Path('.').glob('*.html'):
+              text = page.read_text(encoding='utf-8')
+              for name in forbidden:
+                  if name in text:
+                      errors.append(f'{page}: legacy logo reference: {name}')
+          if errors:
+              raise SystemExit('\n'.join(errors))
+          print('Public pages reference only canonical Structura and Floor & Wall logos.')
+          PY
+
+      - name: Commit non-brand normalization changes
+        run: |
+          if git diff --quiet; then
             echo 'No changes required.'
             exit 0
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png '*.html'
-          git commit -m 'Lock Structura Tools brand across all locales'
+          git add assets/road-click-safe.png assets/buildings-safe.png '*.html'
+          git diff --cached --quiet && exit 0
+          git commit -m 'Normalize non-canonical web assets and brand references'
           git push
