@@ -4,8 +4,8 @@ import sys
 
 FINAL_LOGO = "/assets/structura-logo-final.png"
 FINAL_FLOOR = "/assets/floor-wall-logo-current.png"
-VERSION = "20260815-brand-final"
-BUILD = "2026-08-15-structura-tools-final-brand"
+VERSION = "20260815-user-canonical-v1"
+BUILD = "2026-08-15-user-canonical-logos-v1"
 
 OLD_STRUCTURA = [
     "structura-logo-official.webp",
