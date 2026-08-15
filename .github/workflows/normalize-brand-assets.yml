@@ -65,8 +65,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          webpinfo -diag assets/floor-wall-logo-official.webp || true
-          dwebp assets/floor-wall-logo-official.webp -png -o assets/floor-wall-logo-current.png
+          webpinfo -diag assets/floor-wall-logo-official.webp
+          dwebp assets/floor-wall-logo-official.webp -o assets/floor-wall-logo-current.png
           python - <<'PY'
           from PIL import Image
           path = 'assets/floor-wall-logo-current.png'
@@ -127,8 +127,8 @@ jobs:
               original = text
               for old, new in replacements.items():
                   text = text.replace(old, new)
-              text = re.sub(r'v=202608(?:13|14|15)-[0-9A-Za-z-]+', 'v=20260815-0515', text)
-              text = re.sub(r'content="2026-08-(?:14|15)-[^"]+"', 'content="2026-08-15-approved-brand-0515"', text)
+              text = re.sub(r'v=202608(?:13|14|15)-[0-9A-Za-z-]+', 'v=20260815-0525', text)
+              text = re.sub(r'content="2026-08-(?:14|15)-[^"]+"', 'content="2026-08-15-approved-brand-0525"', text)
               if text != original:
                   page.write_text(text, encoding='utf-8')
                   print(f'Updated {page}')
