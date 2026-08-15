@@ -18,7 +18,7 @@ jobs:
       - name: Install image decoder
         run: python -m pip install --disable-pip-version-check pillow
 
-      - name: Validate references, images and immutable Structura Tools brand
+      - name: Validate canonical public brand assets and immutable Structura Tools name
         shell: bash
         run: |
           python - <<'PY'
@@ -56,12 +56,11 @@ jobs:
               'STRUMENTI STRUCTURA',
           }
 
-          required_current = [
+          canonical_brand_assets = [
               Path('assets/structura-logo-final.png'),
               Path('assets/floor-wall-logo-current.png'),
               Path('assets/road-click-safe.png'),
               Path('assets/buildings-safe.png'),
-              Path('assets/pau-cols-final.jpg'),
           ]
 
           html_files = sorted(glob.glob('*.html'))
@@ -107,17 +106,20 @@ jobs:
               if not os.path.isfile(path):
                   errors.append(f'{html}: missing local asset/page: {path}')
 
-          for path in required_current:
+          # Strictly decode only the canonical brand assets that are part of the
+          # current public identity. Historical source rasters may remain in the
+          # repository for audit/history but cannot be referenced by HTML.
+          for path in canonical_brand_assets:
               if not path.is_file():
-                  errors.append(f'missing required current public asset: {path}')
+                  errors.append(f'missing canonical public brand asset: {path}')
                   continue
               try:
                   with Image.open(path) as im:
                       im.load()
                       if im.width < 1 or im.height < 1:
-                          errors.append(f'zero-sized public asset: {path}')
+                          errors.append(f'zero-sized canonical asset: {path}')
                       if getattr(im, 'n_frames', 1) != 1:
-                          errors.append(f'public asset must be static: {path}')
+                          errors.append(f'canonical asset must be static: {path}')
                       if path.name == 'structura-logo-final.png':
                           rgba = im.convert('RGBA')
                           lo, hi = rgba.getchannel('A').getextrema()
@@ -126,33 +128,11 @@ jobs:
                           if max(ImageStat.Stat(rgba.convert('RGB')).var) < 25:
                               errors.append('definitive Structura logo appears visually blank')
               except Exception as exc:
-                  errors.append(f'invalid current public asset: {path}: {exc}')
-
-          # Fully decode public non-WebP raster assets. Source WebPs can remain only as
-          # internal normalization inputs; HTML is forbidden from referencing them.
-          for path in sorted(glob.glob('assets/*')):
-              if not os.path.isfile(path):
-                  continue
-              ext = os.path.splitext(path)[1].lower()
-              if ext not in {'.png', '.jpg', '.jpeg', '.webp'}:
-                  continue
-              try:
-                  with Image.open(path) as im:
-                      if ext == '.webp':
-                          im.seek(0)
-                          frame = im.copy()
-                          frame.load()
-                      else:
-                          im.load()
-              except Exception as exc:
-                  if ext == '.webp':
-                      print(f'WARNING source WebP requires normalization: {path}: {exc}')
-                  else:
-                      errors.append(f'failed full image decode: {path}: {exc}')
+                  errors.append(f'invalid canonical public asset: {path}: {exc}')
 
           if errors:
               print('\n'.join(errors))
               sys.exit(1)
 
-          print(f'Validated {len(html_files)} HTML pages, {len(refs)} local references and the definitive Structura Tools brand contract.')
+          print(f'Validated {len(html_files)} HTML pages, {len(refs)} local references and all canonical Structura Tools brand assets.')
           PY
