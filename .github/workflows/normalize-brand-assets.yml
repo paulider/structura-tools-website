@@ -6,7 +6,6 @@ on:
     paths:
       - '.github/workflows/normalize-brand-assets.yml'
       - 'assets/structura-logo-approved.jpg'
-      - 'assets/floor-wall-logo-official.webp'
       - 'assets/road-click.webp'
       - 'assets/buildings.webp'
   workflow_dispatch:
@@ -19,19 +18,24 @@ jobs:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout website
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Checkout Floor Wall source repository
+        uses: actions/checkout@v4
+        with:
+          repository: paulider/Structura-Floor-Walls
+          path: floor-source
+          fetch-depth: 1
 
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
-      - name: Install image decoders
-        run: |
-          python -m pip install --disable-pip-version-check pillow
-          sudo apt-get update
-          sudo apt-get install -y webp
+      - name: Install image decoder
+        run: python -m pip install --disable-pip-version-check pillow
 
       - name: Normalize approved Structura artwork
         shell: bash
@@ -44,8 +48,9 @@ jobs:
           src = assets / 'structura-logo-approved.jpg'
           dst = assets / 'structura-logo-current.png'
 
-          # The approved historical JPEG is missing only its terminal bytes. Decode it
-          # once in tolerant mode, then rewrite and validate a strict static PNG.
+          # Exact approved NEW Structura blob restored from repository history.
+          # The historical JPEG is missing only terminal bytes; decode once in
+          # tolerant mode and rewrite it as a strict static PNG.
           ImageFile.LOAD_TRUNCATED_IMAGES = True
           with Image.open(src) as im:
               im.load()
@@ -61,20 +66,76 @@ jobs:
               print(f'Structura current: {im.width}x{im.height}, {im.mode}')
           PY
 
-      - name: Decode official current Floor Wall artwork with libwebp
+      - name: Recover approved Floor Wall logo from plugin package
         shell: bash
         run: |
           set -euo pipefail
-          webpinfo -diag assets/floor-wall-logo-official.webp
-          dwebp assets/floor-wall-logo-official.webp -o assets/floor-wall-logo-current.png
+          RBZ='floor-source/Structura_Floor_Wall_V3_2_0_vray_clone_variants_DEV.rbz'
+          test -s "$RBZ"
+          rm -rf /tmp/floor-wall-rbz
+          mkdir -p /tmp/floor-wall-rbz
+          unzip -q "$RBZ" -d /tmp/floor-wall-rbz
+
           python - <<'PY'
-          from PIL import Image
-          path = 'assets/floor-wall-logo-current.png'
-          with Image.open(path) as im:
+          from pathlib import Path
+          from PIL import Image, ImageFile
+          import shutil
+          import re
+
+          root = Path('/tmp/floor-wall-rbz')
+          out = Path('assets/floor-wall-logo-current.png')
+
+          def key(name):
+              return re.sub(r'[^a-z0-9]+', '', name.lower())
+
+          exact_keys = {
+              'floorwalllogo',
+              'floorwalllogov2',
+              'iconofloorwalltransparenthdv2',
+              'iconofloorwallhdv2',
+          }
+
+          pngs = sorted(p for p in root.rglob('*') if p.is_file() and p.suffix.lower() == '.png')
+          exact = [p for p in pngs if key(p.stem) in exact_keys]
+
+          print('PNG candidates inside Floor & Wall package:')
+          for p in pngs:
+              try:
+                  with Image.open(p) as im:
+                      print(f'  {p.relative_to(root)} | {im.width}x{im.height} | {im.mode}')
+              except Exception as exc:
+                  print(f'  {p.relative_to(root)} | unreadable: {exc}')
+
+          if not exact:
+              # Do not silently regress to an old/general icon. The workflow must fail
+              # until the approved logo source is positively identified.
+              likely = [p for p in pngs if 'floor' in key(p.stem) and ('logo' in key(p.stem) or 'icon' in key(p.stem))]
+              print('Likely Floor & Wall candidates:', [str(p.relative_to(root)) for p in likely])
+              raise SystemExit('Approved Floor & Wall logo not found by canonical filename in plugin package')
+
+          # Prefer an exact canonical filename. If duplicates exist, prefer the largest
+          # decoded raster because the June-approved asset was the HD transparent version.
+          scored = []
+          ImageFile.LOAD_TRUNCATED_IMAGES = False
+          for p in exact:
+              with Image.open(p) as im:
+                  im.load()
+                  scored.append((im.width * im.height, p, im.width, im.height, im.mode))
+          scored.sort(reverse=True, key=lambda x: x[0])
+          _, src, w, h, mode = scored[0]
+          print(f'Using approved Floor & Wall source: {src.relative_to(root)} | {w}x{h} | {mode}')
+
+          with Image.open(src) as im:
               im.load()
-              if im.width != 192 or im.height != 192 or getattr(im, 'n_frames', 1) != 1:
-                  raise SystemExit(f'Unexpected Floor & Wall output: {im.size}, frames={getattr(im,"n_frames",1)}')
-              print(f'Floor Wall current: {im.width}x{im.height}, {im.mode}')
+              has_alpha = im.mode in ('RGBA', 'LA') or 'transparency' in im.info
+              normalized = im.convert('RGBA' if has_alpha else 'RGB')
+              normalized.save(out, format='PNG', optimize=True)
+
+          with Image.open(out) as check:
+              check.load()
+              if check.width < 1 or check.height < 1 or getattr(check, 'n_frames', 1) != 1:
+                  raise SystemExit('Recovered Floor & Wall logo is invalid')
+              print(f'Floor Wall current: {check.width}x{check.height}, {check.mode}')
           PY
 
       - name: Normalize Road Click and Buildings
@@ -110,6 +171,7 @@ jobs:
               '/assets/structura-logo-official.webp': '/assets/structura-logo-current.png',
               '/assets/structura-logo-approved.jpg': '/assets/structura-logo-current.png',
               '/assets/structura-logo-20260813.jpg': '/assets/structura-logo-current.png',
+              '/assets/structura-logo-20260813.png': '/assets/structura-logo-current.png',
               '/assets/structura-logo-safe.png': '/assets/structura-logo-current.png',
               '/assets/structura-logo-clean.png': '/assets/structura-logo-current.png',
               '/assets/structura-logo.png': '/assets/structura-logo-current.png',
@@ -127,8 +189,8 @@ jobs:
               original = text
               for old, new in replacements.items():
                   text = text.replace(old, new)
-              text = re.sub(r'v=202608(?:13|14|15)-[0-9A-Za-z-]+', 'v=20260815-0525', text)
-              text = re.sub(r'content="2026-08-(?:14|15)-[^"]+"', 'content="2026-08-15-approved-brand-0525"', text)
+              text = re.sub(r'v=202608(?:13|14|15)-[0-9A-Za-z-]+', 'v=20260815-1045', text)
+              text = re.sub(r'content="2026-08-(?:14|15)-[^"]+"', 'content="2026-08-15-approved-brand-1045"', text)
               if text != original:
                   page.write_text(text, encoding='utf-8')
                   print(f'Updated {page}')
@@ -143,6 +205,7 @@ jobs:
               '/assets/structura-logo.png',
               '/assets/structura-logo-clean.png',
               '/assets/structura-logo-safe.png',
+              '/assets/structura-logo-20260813.png',
               '/assets/structura-logo-20260813.jpg',
               '/assets/structura-logo-approved.jpg',
               '/assets/structura-logo-official.webp',
@@ -171,5 +234,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add assets/structura-logo-current.png assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png index.html road-click.html floor-wall.html buildings.html
-          git commit -m 'Use normalized current Structura and Floor Wall logos'
+          git commit -m 'Restore approved current Structura and Floor Wall logos'
           git push
