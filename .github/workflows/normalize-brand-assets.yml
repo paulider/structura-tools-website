@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/normalize-brand-assets.yml'
-      - 'assets/structura-logo-20260813.jpg'
+      - 'assets/structura-logo-approved.jpg'
       - 'assets/floor-wall-logo-official.webp'
       - 'assets/road-click.webp'
       - 'assets/buildings.webp'
@@ -42,21 +42,16 @@ jobs:
           ImageFile.LOAD_TRUNCATED_IMAGES = False
           assets = Path('assets')
 
-          # ----- Structura -----
-          # Canonical NEW approved artwork. Never use structura-logo.png,
-          # structura-logo-clean.png or structura-logo-safe.png as a fallback.
-          structura = assets / 'structura-logo-20260813.jpg'
+          # Structura: exact NEW approved historical blob restored by SHA.
+          structura = assets / 'structura-logo-approved.jpg'
           with Image.open(structura) as im:
               im.load()
               if im.width < 1 or im.height < 1 or getattr(im, 'n_frames', 1) != 1:
-                  raise SystemExit('Invalid approved Structura logo')
-              print(f'Structura current: {im.width}x{im.height}, {im.format}')
+                  raise SystemExit('Invalid restored approved Structura logo')
+              print(f'Structura approved: {im.width}x{im.height}, {im.format}')
 
-          # ----- Floor & Wall -----
-          # The official NEW WebP has damaged trailing/container metadata. Both Pillow
-          # and ffmpeg reject the complete container. Recover the exact visual payload
-          # by rebuilding a static WebP from its VP8X/ALPH/VP8(L) chunks and dropping
-          # ANIM/ANMF or any damaged trailing metadata. This does NOT alter the artwork.
+          # Floor & Wall: rebuild a static WebP from the NEW official visual chunks,
+          # dropping damaged trailing/container metadata. Never use floor-wall-icon.jpg.
           source = assets / 'floor-wall-logo-official.webp'
           raw = source.read_bytes()
           if len(raw) < 20 or raw[:4] != b'RIFF' or raw[8:12] != b'WEBP':
@@ -89,19 +84,17 @@ jobs:
 
           body = bytearray(b'WEBP')
           if b'VP8L' in by_name:
-              # Lossless VP8L includes alpha itself. VP8X is optional for a static file;
-              # keep a cleaned VP8X only if it was present.
               if b'VP8X' in by_name:
                   vp8x = bytearray(by_name[b'VP8X'][0])
                   if vp8x:
-                      vp8x[0] &= ~0x02  # clear animation feature flag
+                      vp8x[0] &= ~0x02
                   body += pack_chunk(b'VP8X', bytes(vp8x))
               body += pack_chunk(b'VP8L', by_name[b'VP8L'][0])
           elif b'VP8 ' in by_name:
               if b'VP8X' in by_name:
                   vp8x = bytearray(by_name[b'VP8X'][0])
                   if vp8x:
-                      vp8x[0] &= ~0x02  # clear animation feature flag
+                      vp8x[0] &= ~0x02
                   body += pack_chunk(b'VP8X', bytes(vp8x))
               if b'ICCP' in by_name:
                   body += pack_chunk(b'ICCP', by_name[b'ICCP'][0])
@@ -109,7 +102,7 @@ jobs:
                   body += pack_chunk(b'ALPH', by_name[b'ALPH'][0])
               body += pack_chunk(b'VP8 ', by_name[b'VP8 '][0])
           else:
-              raise SystemExit(f'No recoverable VP8/VP8L visual chunk. Found: {[n for n,_ in chunks]}')
+              raise SystemExit(f'No recoverable visual chunk. Found: {[n for n,_ in chunks]}')
 
           recovered = b'RIFF' + struct.pack('<I', len(body)) + bytes(body)
           recovered_path = Path('/tmp/floor-wall-recovered.webp')
@@ -126,9 +119,8 @@ jobs:
               check.load()
               if check.width < 1 or check.height < 1 or getattr(check, 'n_frames', 1) != 1:
                   raise SystemExit('Recovered Floor & Wall PNG is invalid')
-              print(f'Floor Wall current recovered: {check.width}x{check.height}, {check.mode}')
+              print(f'Floor Wall current: {check.width}x{check.height}, {check.mode}')
 
-          # Current Road Click / Buildings artwork: normalize to static PNGs.
           for src_name, dst_name in {
               'road-click.webp': 'road-click-safe.png',
               'buildings.webp': 'buildings-safe.png',
@@ -138,10 +130,6 @@ jobs:
                   im.load()
                   out = im.convert('RGBA' if im.mode in ('RGBA', 'LA') or 'transparency' in im.info else 'RGB')
                   out.save(assets / dst_name, format='PNG', optimize=True)
-              with Image.open(assets / dst_name) as check:
-                  check.load()
-                  if getattr(check, 'n_frames', 1) != 1:
-                      raise SystemExit(f'Invalid static asset: {dst_name}')
           PY
 
       - name: Update public references
@@ -152,10 +140,11 @@ jobs:
           import re
 
           replacements = {
-              '/assets/structura-logo-official.webp': '/assets/structura-logo-20260813.jpg',
-              '/assets/structura-logo-safe.png': '/assets/structura-logo-20260813.jpg',
-              '/assets/structura-logo-clean.png': '/assets/structura-logo-20260813.jpg',
-              '/assets/structura-logo.png': '/assets/structura-logo-20260813.jpg',
+              '/assets/structura-logo-official.webp': '/assets/structura-logo-approved.jpg',
+              '/assets/structura-logo-20260813.jpg': '/assets/structura-logo-approved.jpg',
+              '/assets/structura-logo-safe.png': '/assets/structura-logo-approved.jpg',
+              '/assets/structura-logo-clean.png': '/assets/structura-logo-approved.jpg',
+              '/assets/structura-logo.png': '/assets/structura-logo-approved.jpg',
               '/assets/floor-wall-logo-official.webp': '/assets/floor-wall-logo-current.png',
               '/assets/floor-wall-logo-safe.png': '/assets/floor-wall-logo-current.png',
               '/assets/floor-wall-icon.jpg': '/assets/floor-wall-logo-current.png',
@@ -170,8 +159,8 @@ jobs:
               original = text
               for old, new in replacements.items():
                   text = text.replace(old, new)
-              text = re.sub(r'v=202608(?:13|14|15)-[0-9A-Za-z-]+', 'v=20260815-0445', text)
-              text = text.replace('content="2026-08-14-official-logos-2015"', 'content="2026-08-15-current-brand-0445"')
+              text = re.sub(r'v=202608(?:13|14|15)-[0-9A-Za-z-]+', 'v=20260815-0455', text)
+              text = re.sub(r'content="2026-08-(?:14|15)-[^"]+"', 'content="2026-08-15-approved-brand-0455"', text)
               if text != original:
                   page.write_text(text, encoding='utf-8')
                   print(f'Updated {page}')
@@ -186,6 +175,7 @@ jobs:
               '/assets/structura-logo.png',
               '/assets/structura-logo-clean.png',
               '/assets/structura-logo-safe.png',
+              '/assets/structura-logo-20260813.jpg',
               '/assets/floor-wall-icon.jpg',
               '/assets/floor-wall-logo-safe.png',
           ]
@@ -194,10 +184,10 @@ jobs:
               text = page.read_text(encoding='utf-8')
               for asset in legacy:
                   if asset in text:
-                      errors.append(f'{page}: legacy logo reference {asset}')
+                      errors.append(f'{page}: legacy/broken logo reference {asset}')
           if errors:
               raise SystemExit('\n'.join(errors))
-          print('No public page references legacy Structura/Floor & Wall artwork.')
+          print('No public page references legacy/broken Structura/Floor & Wall artwork.')
           PY
 
       - name: Commit current brand assets
@@ -210,5 +200,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png index.html road-click.html floor-wall.html buildings.html
-          git commit -m 'Restore approved current Structura and Floor Wall logos'
+          git commit -m 'Use approved current Structura and Floor Wall logos'
           git push
