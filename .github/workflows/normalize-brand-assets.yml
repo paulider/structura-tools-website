@@ -5,9 +5,10 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/normalize-brand-assets.yml'
-      - 'assets/*.webp'
-      - 'assets/structura-logo.png'
-      - 'assets/floor-wall-icon.jpg'
+      - 'assets/structura-logo-20260813.jpg'
+      - 'assets/floor-wall-logo-official.webp'
+      - 'assets/road-click.webp'
+      - 'assets/buildings.webp'
   workflow_dispatch:
 
 permissions:
@@ -26,12 +27,23 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install image decoder
-        run: python -m pip install --disable-pip-version-check pillow
+      - name: Install image tools
+        run: |
+          python -m pip install --disable-pip-version-check pillow
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
 
-      - name: Create static Safari-safe brand PNGs
+      - name: Build current production assets
         shell: bash
         run: |
+          set -euo pipefail
+          test -s assets/structura-logo-20260813.jpg
+          test -s assets/floor-wall-logo-official.webp
+
+          # Floor & Wall must preserve the NEW official artwork. Extract the visual
+          # frame into a static PNG; never substitute the historical floor-wall-icon.jpg.
+          ffmpeg -v error -y -i assets/floor-wall-logo-official.webp -frames:v 1 /tmp/floor-wall-logo-current.png
+
           python - <<'PY'
           from pathlib import Path
           from PIL import Image, ImageFile
@@ -39,53 +51,56 @@ jobs:
           ImageFile.LOAD_TRUNCATED_IMAGES = False
           assets = Path('assets')
 
-          # Canonical production sources. Do not derive Structura from
-          # structura-logo-official.webp: that raster contains visible corrupted
-          # pixels in the lower portion of the artwork. The previously approved
-          # structura-logo.png is the canonical clean source.
-          # floor-wall-logo-official.webp also contains malformed frame metadata,
-          # so Floor & Wall uses its stable raster source.
-          sources = {
-              'structura-logo.png': 'structura-logo-clean.png',
-              'floor-wall-icon.jpg': 'floor-wall-logo-safe.png',
+          # Approved current Structura artwork. This file is intentionally used
+          # directly; structura-logo.png / *-clean.png are legacy artwork.
+          with Image.open(assets / 'structura-logo-20260813.jpg') as im:
+              im.load()
+              if im.width < 1 or im.height < 1 or getattr(im, 'n_frames', 1) != 1:
+                  raise SystemExit('Invalid approved Structura logo')
+              print(f'Structura current: {im.width}x{im.height}, {im.format}')
+
+          src = Path('/tmp/floor-wall-logo-current.png')
+          dst = assets / 'floor-wall-logo-current.png'
+          with Image.open(src) as im:
+              im.load()
+              out = im.convert('RGBA' if im.mode in ('RGBA', 'LA') or 'transparency' in im.info else 'RGB')
+              out.save(dst, format='PNG', optimize=True)
+          with Image.open(dst) as im:
+              im.load()
+              if im.width < 1 or im.height < 1 or getattr(im, 'n_frames', 1) != 1:
+                  raise SystemExit('Invalid current Floor & Wall logo')
+              print(f'Floor Wall current: {im.width}x{im.height}, {im.mode}')
+
+          for src_name, dst_name in {
               'road-click.webp': 'road-click-safe.png',
               'buildings.webp': 'buildings-safe.png',
-          }
-
-          for src_name, dst_name in sources.items():
-              src = assets / src_name
-              dst = assets / dst_name
-              if not src.is_file():
-                  raise SystemExit(f'Missing required source asset: {src}')
-
-              with Image.open(src) as im:
+          }.items():
+              with Image.open(assets / src_name) as im:
                   im.seek(0)
                   im.load()
-                  has_alpha = im.mode in ('RGBA', 'LA') or 'transparency' in im.info
-                  out = im.convert('RGBA' if has_alpha else 'RGB')
-                  out.save(dst, format='PNG', optimize=True)
-
-              with Image.open(dst) as check:
+                  out = im.convert('RGBA' if im.mode in ('RGBA', 'LA') or 'transparency' in im.info else 'RGB')
+                  out.save(assets / dst_name, format='PNG', optimize=True)
+              with Image.open(assets / dst_name) as check:
                   check.load()
-                  if check.format != 'PNG' or getattr(check, 'n_frames', 1) != 1:
-                      raise SystemExit(f'Invalid static PNG: {dst}')
-                  if check.width < 1 or check.height < 1:
-                      raise SystemExit(f'Empty PNG: {dst}')
-                  print(f'Verified {dst}: {check.width}x{check.height}, mode={check.mode}')
+                  if getattr(check, 'n_frames', 1) != 1:
+                      raise SystemExit(f'Invalid static asset: {dst_name}')
           PY
 
-      - name: Point public pages at stable image formats
+      - name: Update public references
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
           replacements = {
-              '/assets/structura-logo-official.webp': '/assets/structura-logo-clean.png',
-              '/assets/structura-logo-20260813.png': '/assets/structura-logo-clean.png',
-              '/assets/structura-logo-safe.png': '/assets/structura-logo-clean.png',
-              '/assets/floor-wall-logo-official.webp': '/assets/floor-wall-logo-safe.png',
-              '/assets/floor-wall-icon.jpg': '/assets/floor-wall-logo-safe.png',
+              '/assets/structura-logo-official.webp': '/assets/structura-logo-20260813.jpg',
+              '/assets/structura-logo-safe.png': '/assets/structura-logo-20260813.jpg',
+              '/assets/structura-logo-clean.png': '/assets/structura-logo-20260813.jpg',
+              '/assets/structura-logo.png': '/assets/structura-logo-20260813.jpg',
+              '/assets/floor-wall-logo-official.webp': '/assets/floor-wall-logo-current.png',
+              '/assets/floor-wall-logo-safe.png': '/assets/floor-wall-logo-current.png',
+              '/assets/floor-wall-icon.jpg': '/assets/floor-wall-logo-current.png',
               '/assets/road-click.webp': '/assets/road-click-safe.png',
               '/assets/buildings.webp': '/assets/buildings-safe.png',
               '/assets/pau-cols-founder.webp': '/assets/pau-cols-final.jpg',
@@ -97,22 +112,45 @@ jobs:
               original = text
               for old, new in replacements.items():
                   text = text.replace(old, new)
-              # Force a fresh browser/CDN cache key for the corrected brand asset.
-              text = text.replace('v=20260814-2015', 'v=20260815-0025')
+              text = re.sub(r'v=202608(?:13|14|15)-[0-9A-Za-z-]+', 'v=20260815-0435', text)
+              text = text.replace('content="2026-08-14-official-logos-2015"', 'content="2026-08-15-current-brand-0435"')
               if text != original:
                   page.write_text(text, encoding='utf-8')
                   print(f'Updated {page}')
           PY
 
-      - name: Commit normalized assets
+      - name: Block legacy visual fallbacks
         shell: bash
         run: |
-          if git diff --quiet && [ -z "$(git status --porcelain assets/*-safe.png assets/structura-logo-clean.png 2>/dev/null)" ]; then
-            echo 'No normalization changes required.'
+          python - <<'PY'
+          from pathlib import Path
+          legacy = [
+              '/assets/structura-logo.png',
+              '/assets/structura-logo-clean.png',
+              '/assets/structura-logo-safe.png',
+              '/assets/floor-wall-icon.jpg',
+              '/assets/floor-wall-logo-safe.png',
+          ]
+          errors = []
+          for page in map(Path, ['index.html','road-click.html','floor-wall.html','buildings.html']):
+              text = page.read_text(encoding='utf-8')
+              for asset in legacy:
+                  if asset in text:
+                      errors.append(f'{page}: legacy logo reference {asset}')
+          if errors:
+              raise SystemExit('\n'.join(errors))
+          print('Public pages use only current approved Structura/Floor Wall artwork.')
+          PY
+
+      - name: Commit current brand assets
+        shell: bash
+        run: |
+          if git diff --quiet && [ -z "$(git status --porcelain assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png 2>/dev/null)" ]; then
+            echo 'No changes required.'
             exit 0
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add assets/structura-logo-clean.png assets/floor-wall-logo-safe.png assets/road-click-safe.png assets/buildings-safe.png index.html road-click.html floor-wall.html buildings.html
-          git commit -m 'Use clean canonical Structura logo asset'
+          git add assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png index.html road-click.html floor-wall.html buildings.html
+          git commit -m 'Restore approved current Structura and Floor Wall logos'
           git push
