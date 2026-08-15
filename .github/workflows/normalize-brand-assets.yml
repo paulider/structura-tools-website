@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/normalize-brand-assets.yml'
-      - 'assets/structura-logo-approved.jpg'
+      - 'assets/structura-logo-20260813.jpg'
       - 'assets/road-click.webp'
       - 'assets/buildings.webp'
   workflow_dispatch:
@@ -42,28 +42,40 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          from PIL import Image, ImageFile
+          from PIL import Image, ImageFile, ImageStat
 
           assets = Path('assets')
-          src = assets / 'structura-logo-approved.jpg'
+          src = assets / 'structura-logo-20260813.jpg'
           dst = assets / 'structura-logo-current.png'
 
-          # Exact approved NEW Structura blob restored from repository history.
-          # The historical JPEG is missing only terminal bytes; decode once in
-          # tolerant mode and rewrite it as a strict static PNG.
-          ImageFile.LOAD_TRUNCATED_IMAGES = True
+          # Canonical NEW artwork selected by the historical commit
+          # "Switch landing to approved Structura logo artwork".
+          # Never source the public logo from structura-logo.png, *-clean.png,
+          # *-safe.png or the 7.5 KB truncated historical copy.
+          ImageFile.LOAD_TRUNCATED_IMAGES = False
           with Image.open(src) as im:
               im.load()
-              if im.width < 1 or im.height < 1:
-                  raise SystemExit('Approved Structura source is empty')
-              im.convert('RGB').save(dst, format='PNG', optimize=True)
-          ImageFile.LOAD_TRUNCATED_IMAGES = False
+              rgb = im.convert('RGB')
+              stat = ImageStat.Stat(rgb)
+              max_variance = max(stat.var)
+              extrema = rgb.getextrema()
+              if rgb.width < 256 or rgb.height < 256:
+                  raise SystemExit(f'Approved Structura source unexpectedly small: {rgb.size}')
+              if max_variance < 25:
+                  raise SystemExit(f'Approved Structura source has insufficient visual variance: {max_variance}')
+              if all(lo == hi for lo, hi in extrema):
+                  raise SystemExit('Approved Structura source is visually blank')
+              rgb.save(dst, format='PNG', optimize=True)
+              print(f'Structura approved source: {rgb.width}x{rgb.height}, variance={max_variance:.2f}, extrema={extrema}')
 
           with Image.open(dst) as im:
               im.load()
-              if im.width != 384 or im.height != 384 or getattr(im, 'n_frames', 1) != 1:
+              stat = ImageStat.Stat(im.convert('RGB'))
+              if im.width < 256 or im.height < 256 or getattr(im, 'n_frames', 1) != 1:
                   raise SystemExit(f'Unexpected Structura output: {im.size}, frames={getattr(im,"n_frames",1)}')
-              print(f'Structura current: {im.width}x{im.height}, {im.mode}')
+              if max(stat.var) < 25 or dst.stat().st_size < 5000:
+                  raise SystemExit(f'Normalized Structura output looks blank/corrupt: bytes={dst.stat().st_size}, variance={max(stat.var):.2f}')
+              print(f'Structura current: {im.width}x{im.height}, {im.mode}, bytes={dst.stat().st_size}, variance={max(stat.var):.2f}')
           PY
 
       - name: Recover approved Floor Wall logo from plugin package
@@ -79,7 +91,6 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           from PIL import Image, ImageFile
-          import shutil
           import re
 
           root = Path('/tmp/floor-wall-rbz')
@@ -97,24 +108,11 @@ jobs:
 
           pngs = sorted(p for p in root.rglob('*') if p.is_file() and p.suffix.lower() == '.png')
           exact = [p for p in pngs if key(p.stem) in exact_keys]
-
-          print('PNG candidates inside Floor & Wall package:')
-          for p in pngs:
-              try:
-                  with Image.open(p) as im:
-                      print(f'  {p.relative_to(root)} | {im.width}x{im.height} | {im.mode}')
-              except Exception as exc:
-                  print(f'  {p.relative_to(root)} | unreadable: {exc}')
-
           if not exact:
-              # Do not silently regress to an old/general icon. The workflow must fail
-              # until the approved logo source is positively identified.
               likely = [p for p in pngs if 'floor' in key(p.stem) and ('logo' in key(p.stem) or 'icon' in key(p.stem))]
               print('Likely Floor & Wall candidates:', [str(p.relative_to(root)) for p in likely])
               raise SystemExit('Approved Floor & Wall logo not found by canonical filename in plugin package')
 
-          # Prefer an exact canonical filename. If duplicates exist, prefer the largest
-          # decoded raster because the June-approved asset was the HD transparent version.
           scored = []
           ImageFile.LOAD_TRUNCATED_IMAGES = False
           for p in exact:
@@ -128,14 +126,13 @@ jobs:
           with Image.open(src) as im:
               im.load()
               has_alpha = im.mode in ('RGBA', 'LA') or 'transparency' in im.info
-              normalized = im.convert('RGBA' if has_alpha else 'RGB')
-              normalized.save(out, format='PNG', optimize=True)
+              im.convert('RGBA' if has_alpha else 'RGB').save(out, format='PNG', optimize=True)
 
           with Image.open(out) as check:
               check.load()
               if check.width < 1 or check.height < 1 or getattr(check, 'n_frames', 1) != 1:
                   raise SystemExit('Recovered Floor & Wall logo is invalid')
-              print(f'Floor Wall current: {check.width}x{check.height}, {check.mode}')
+              print(f'Floor Wall current: {check.width}x{check.height}, {check.mode}, bytes={out.stat().st_size}')
           PY
 
       - name: Normalize Road Click and Buildings
@@ -189,8 +186,8 @@ jobs:
               original = text
               for old, new in replacements.items():
                   text = text.replace(old, new)
-              text = re.sub(r'v=202608(?:13|14|15)-[0-9A-Za-z-]+', 'v=20260815-1045', text)
-              text = re.sub(r'content="2026-08-(?:14|15)-[^"]+"', 'content="2026-08-15-approved-brand-1045"', text)
+              text = re.sub(r'v=202608(?:13|14|15)-[0-9A-Za-z-]+', 'v=20260815-1115', text)
+              text = re.sub(r'content="2026-08-(?:14|15)-[^"]+"', 'content="2026-08-15-approved-brand-1115"', text)
               if text != original:
                   page.write_text(text, encoding='utf-8')
                   print(f'Updated {page}')
@@ -234,5 +231,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add assets/structura-logo-current.png assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png index.html road-click.html floor-wall.html buildings.html
-          git commit -m 'Restore approved current Structura and Floor Wall logos'
+          git commit -m 'Use approved nonblank Structura and Floor Wall logos'
           git push
