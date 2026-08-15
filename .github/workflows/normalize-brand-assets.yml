@@ -18,13 +18,11 @@ jobs:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout website
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Checkout Floor Wall source repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           repository: paulider/Structura-Floor-Walls
           path: floor-source
@@ -38,220 +36,105 @@ jobs:
         run: python -m pip install --disable-pip-version-check pillow
 
       - name: Validate definitive Structura logo
-        shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
           from PIL import Image, ImageStat
-
-          path = Path('assets/structura-logo-final.png')
-          if not path.is_file():
-              raise SystemExit('Missing definitive Structura logo: assets/structura-logo-final.png')
-          with Image.open(path) as im:
-              im.load()
-              rgba = im.convert('RGBA')
-              if rgba.width < 256 or rgba.height < 256:
-                  raise SystemExit(f'Definitive Structura logo unexpectedly small: {rgba.size}')
-              if getattr(im, 'n_frames', 1) != 1:
-                  raise SystemExit('Definitive Structura logo must be static')
-              if max(ImageStat.Stat(rgba.convert('RGB')).var) < 25:
-                  raise SystemExit('Definitive Structura logo appears visually blank')
-              alpha = rgba.getchannel('A')
-              lo, hi = alpha.getextrema()
-              if lo == 255:
-                  raise SystemExit('Definitive Structura logo must preserve transparent background')
-              print(f'Structura final: {rgba.width}x{rgba.height}, alpha={lo}-{hi}, bytes={path.stat().st_size}')
+          p=Path('assets/structura-logo-final.png')
+          with Image.open(p) as im:
+              im.load(); rgba=im.convert('RGBA')
+              if rgba.width < 256 or rgba.height < 256: raise SystemExit(f'Logo too small: {rgba.size}')
+              if getattr(im,'n_frames',1) != 1: raise SystemExit('Logo must be static')
+              if max(ImageStat.Stat(rgba.convert('RGB')).var) < 25: raise SystemExit('Logo appears blank')
+              lo,hi=rgba.getchannel('A').getextrema()
+              if lo == 255: raise SystemExit('Logo must preserve transparency')
+              print(f'Structura final: {rgba.size}, alpha={lo}-{hi}, bytes={p.stat().st_size}')
           PY
 
-      - name: Recover current Floor Wall logo from plugin package
-        shell: bash
+      - name: Recover current Floor Wall logo
         run: |
-          set -euo pipefail
-          RBZ='floor-source/Structura_Floor_Wall_V3_2_0_vray_clone_variants_DEV.rbz'
-          test -s "$RBZ"
-          rm -rf /tmp/floor-wall-rbz
-          mkdir -p /tmp/floor-wall-rbz
-          unzip -q "$RBZ" -d /tmp/floor-wall-rbz
+          rm -rf /tmp/floor-wall-rbz && mkdir -p /tmp/floor-wall-rbz
+          unzip -q floor-source/Structura_Floor_Wall_V3_2_0_vray_clone_variants_DEV.rbz -d /tmp/floor-wall-rbz
           python - <<'PY'
           from pathlib import Path
           from PIL import Image
-
-          src = Path('/tmp/floor-wall-rbz/structura_floor_wall/icons/floor_wall_logo.png')
-          dst = Path('assets/floor-wall-logo-current.png')
-          if not src.is_file():
-              raise SystemExit('Current Floor & Wall logo is missing from plugin package')
+          src=Path('/tmp/floor-wall-rbz/structura_floor_wall/icons/floor_wall_logo.png')
+          dst=Path('assets/floor-wall-logo-current.png')
           with Image.open(src) as im:
-              im.load()
-              out = im.convert('RGBA' if im.mode in ('RGBA','LA') or 'transparency' in im.info else 'RGB')
-              out.save(dst, format='PNG', optimize=True)
-          with Image.open(dst) as check:
-              check.load()
-              if check.width < 1 or check.height < 1 or getattr(check,'n_frames',1) != 1:
-                  raise SystemExit('Recovered Floor & Wall logo is invalid')
-              print(f'Floor Wall current: {check.width}x{check.height}, {check.mode}, bytes={dst.stat().st_size}')
+              im.load(); im.convert('RGBA').save(dst,'PNG',optimize=True)
+          with Image.open(dst) as im:
+              im.load(); print('Floor Wall current:',im.size,im.mode)
           PY
 
       - name: Normalize Road Click and Buildings
-        shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
           from PIL import Image
-          assets = Path('assets')
-          for src_name, dst_name in {'road-click.webp':'road-click-safe.png','buildings.webp':'buildings-safe.png'}.items():
-              with Image.open(assets / src_name) as im:
-                  im.seek(0)
-                  im.load()
-                  out = im.convert('RGBA' if im.mode in ('RGBA','LA') or 'transparency' in im.info else 'RGB')
-                  out.save(assets / dst_name, format='PNG', optimize=True)
+          a=Path('assets')
+          for s,d in {'road-click.webp':'road-click-safe.png','buildings.webp':'buildings-safe.png'}.items():
+              with Image.open(a/s) as im:
+                  im.seek(0); im.load(); im.convert('RGBA' if im.mode in ('RGBA','LA') or 'transparency' in im.info else 'RGB').save(a/d,'PNG',optimize=True)
           PY
 
-      - name: Normalize brand name and image references in every locale
-        shell: bash
+      - name: Normalize immutable brand across every locale
         run: |
           python - <<'PY'
           from pathlib import Path
           import re
-
-          FINAL_LOGO = '/assets/structura-logo-final.png'
-          VERSION = 'v=20260815-brand-final'
-          BUILD = '2026-08-15-structura-tools-final-brand'
-
-          old_structura_assets = [
-              '/assets/structura-logo-official.webp',
-              '/assets/structura-logo-current.png',
-              '/assets/structura-logo-approved.jpg',
-              '/assets/structura-logo-20260813.jpg',
-              '/assets/structura-logo-20260813.png',
-              '/assets/structura-logo-safe.png',
-              '/assets/structura-logo-clean.png',
-              '/assets/structura-logo.png',
-          ]
-          old_floor_assets = [
-              '/assets/floor-wall-logo-official.webp',
-              '/assets/floor-wall-logo-safe.png',
-              '/assets/floor-wall-icon.jpg',
-          ]
-
-          # Historical translated variants seen in generated locale pages. These are
-          # intentionally normalized only when they represent the brand itself.
-          direct_brand_replacements = {
-              'HERRAMIENTAS STRUCTURA': 'STRUCTURA TOOLS',
-              'Herramientas Structura': 'Structura Tools',
-              'Herramientas de estructura': 'Structura Tools',
-              'ESTRUCTURA': 'STRUCTURA TOOLS',
-              'EINES STRUCTURA': 'STRUCTURA TOOLS',
-              'Eines Structura': 'Structura Tools',
-              'OUTILS STRUCTURA': 'STRUCTURA TOOLS',
-              'Outils Structura': 'Structura Tools',
-              'STRUMENTI STRUCTURA': 'STRUCTURA TOOLS',
-              'Strumenti Structura': 'Structura Tools',
+          final='assets/structura-logo-final.png'
+          floor='assets/floor-wall-logo-current.png'
+          old_structura=['structura-logo-official.webp','structura-logo-current.png','structura-logo-approved.jpg','structura-logo-20260813.jpg','structura-logo-20260813.png','structura-logo-safe.png','structura-logo-clean.png','structura-logo.png']
+          old_floor=['floor-wall-logo-official.webp','floor-wall-logo-safe.png','floor-wall-icon.jpg']
+          translations={
+            'HERRAMIENTAS STRUCTURA':'STRUCTURA TOOLS','Herramientas Structura':'Structura Tools','Herramientas de estructura':'Structura Tools','ESTRUCTURA':'STRUCTURA TOOLS',
+            'EINES STRUCTURA':'STRUCTURA TOOLS','Eines Structura':'Structura Tools','OUTILS STRUCTURA':'STRUCTURA TOOLS','Outils Structura':'Structura Tools',
+            'STRUMENTI STRUCTURA':'STRUCTURA TOOLS','Strumenti Structura':'Structura Tools'
           }
-
-          pages = sorted(Path('.').glob('*.html'))
-          if not pages:
-              raise SystemExit('No HTML pages found')
-
+          pages=sorted(Path('.').glob('*.html'))
           for page in pages:
-              text = page.read_text(encoding='utf-8')
-              original = text
-
-              for old in old_structura_assets:
-                  text = text.replace(old, FINAL_LOGO)
-              for old in old_floor_assets:
-                  text = text.replace(old, '/assets/floor-wall-logo-current.png')
-              text = text.replace('/assets/road-click.webp','/assets/road-click-safe.png')
-              text = text.replace('/assets/buildings.webp','/assets/buildings-safe.png')
-              text = text.replace('/assets/pau-cols-founder.webp','/assets/pau-cols-final.jpg')
-
-              # Brand in the global header: text is immutable in every language.
-              text = re.sub(
-                  r'(<a\b[^>]*class=["\'][^"\']*\bbrand\b[^"\']*["\'][^>]*>.*?<span[^>]*>).*?(</span>)',
-                  r'\1STRUCTURA TOOLS\2',
-                  text,
-                  count=1,
-                  flags=re.IGNORECASE | re.DOTALL,
-              )
-
-              # Brand in landing hero: keep the localized tagline in its nested span,
-              # but never translate the brand name itself.
-              text = re.sub(
-                  r'(<h1\b[^>]*class=["\'][^"\']*\blanding-title\b[^"\']*["\'][^>]*>).*?(<span\b)',
-                  r'\1STRUCTURA TOOLS\2',
-                  text,
-                  count=1,
-                  flags=re.IGNORECASE | re.DOTALL,
-              )
-
-              # Structura ecosystem card is a brand label, not translatable content.
-              text = re.sub(
-                  r'(<[^>]+class=["\'][^"\']*\bbrand-tile\b[^"\']*["\'][^>]*>.*?<strong[^>]*>).*?(</strong>)',
-                  r'\1Structura Tools\2',
-                  text,
-                  count=1,
-                  flags=re.IGNORECASE | re.DOTALL,
-              )
-
-              for old, new in direct_brand_replacements.items():
-                  text = text.replace(old, new)
-
-              # Normalize brand spelling inside title/meta while leaving descriptors translated.
-              text = re.sub(r'\bStructura\s+Tools\b', 'Structura Tools', text, flags=re.IGNORECASE)
-
-              text = re.sub(r'v=202608(?:13|14|15)-[0-9A-Za-z-]+', VERSION, text)
-              text = re.sub(r'content="2026-08-(?:14|15)-[^"]+"', f'content="{BUILD}"', text)
-
-              if text != original:
-                  page.write_text(text, encoding='utf-8')
-                  print(f'Updated {page}')
-
-          print(f'Processed {len(pages)} HTML pages.')
+              t=page.read_text(encoding='utf-8'); o=t
+              for name in old_structura:
+                  t=t.replace('/assets/'+name,'/'+final).replace('assets/'+name,final)
+              for name in old_floor:
+                  t=t.replace('/assets/'+name,'/'+floor).replace('assets/'+name,floor)
+              t=t.replace('/assets/road-click.webp','/assets/road-click-safe.png').replace('assets/road-click.webp','assets/road-click-safe.png')
+              t=t.replace('/assets/buildings.webp','/assets/buildings-safe.png').replace('assets/buildings.webp','assets/buildings-safe.png')
+              t=t.replace('/assets/pau-cols-founder.webp','/assets/pau-cols-final.jpg').replace('assets/pau-cols-founder.webp','assets/pau-cols-final.jpg')
+              t=re.sub(r'(<a\b[^>]*class=["\'][^"\']*\bbrand\b[^"\']*["\'][^>]*>.*?<span[^>]*>).*?(</span>)',r'\1STRUCTURA TOOLS\2',t,count=1,flags=re.I|re.S)
+              t=re.sub(r'(<h1\b[^>]*class=["\'][^"\']*\blanding-title\b[^"\']*["\'][^>]*>).*?(<span\b)',r'\1STRUCTURA TOOLS\2',t,count=1,flags=re.I|re.S)
+              t=re.sub(r'(<[^>]+class=["\'][^"\']*\bbrand-tile\b[^"\']*["\'][^>]*>.*?<strong[^>]*>).*?(</strong>)',r'\1Structura Tools\2',t,count=1,flags=re.I|re.S)
+              for a,b in translations.items(): t=t.replace(a,b)
+              t=re.sub(r'v=202608(?:13|14|15)-[0-9A-Za-z-]+','v=20260815-brand-final',t)
+              t=re.sub(r'content="2026-08-(?:14|15)-[^"]+"','content="2026-08-15-structura-tools-final-brand"',t)
+              if t!=o:
+                  page.write_text(t,encoding='utf-8'); print('Updated',page)
+          print('Processed',len(pages),'HTML pages')
           PY
 
-      - name: Enforce immutable Structura Tools brand contract
-        shell: bash
+      - name: Enforce Structura Tools brand contract
         run: |
           python - <<'PY'
           from pathlib import Path
           import re
-
-          FINAL_LOGO = '/assets/structura-logo-final.png'
-          forbidden_assets = [
-              '/assets/structura-logo-official.webp','/assets/structura-logo-current.png',
-              '/assets/structura-logo.png','/assets/structura-logo-clean.png','/assets/structura-logo-safe.png',
-              '/assets/structura-logo-20260813.png','/assets/structura-logo-20260813.jpg',
-              '/assets/structura-logo-approved.jpg','/assets/floor-wall-icon.jpg',
-              '/assets/floor-wall-logo-safe.png','/assets/floor-wall-logo-official.webp',
-          ]
-          forbidden_brand_text = [
-              'HERRAMIENTAS STRUCTURA','ESTRUCTURA','EINES STRUCTURA',
-              'OUTILS STRUCTURA','STRUMENTI STRUCTURA',
-          ]
+          forbidden_assets=['structura-logo-official.webp','structura-logo-current.png','structura-logo.png','structura-logo-clean.png','structura-logo-safe.png','structura-logo-20260813.png','structura-logo-20260813.jpg','structura-logo-approved.jpg','floor-wall-icon.jpg','floor-wall-logo-safe.png','floor-wall-logo-official.webp']
+          forbidden_text=['HERRAMIENTAS STRUCTURA','ESTRUCTURA','EINES STRUCTURA','OUTILS STRUCTURA','STRUMENTI STRUCTURA']
           errors=[]
-          for page in sorted(Path('.').glob('*.html')):
-              text=page.read_text(encoding='utf-8')
-              for asset in forbidden_assets:
-                  if asset in text:
-                      errors.append(f'{page}: forbidden legacy/broken asset {asset}')
-              for phrase in forbidden_brand_text:
-                  if phrase in text:
-                      errors.append(f'{page}: translated brand name remains: {phrase}')
-              if 'landing-title' in text and 'STRUCTURA TOOLS' not in text:
-                  errors.append(f'{page}: landing brand is not STRUCTURA TOOLS')
-              if 'class="brand"' in text and FINAL_LOGO not in text:
-                  errors.append(f'{page}: header is not using definitive Structura logo')
-          if errors:
-              raise SystemExit('\n'.join(errors))
-          print('Brand contract verified: Structura Tools is immutable across locales.')
+          for p in sorted(Path('.').glob('*.html')):
+              t=p.read_text(encoding='utf-8')
+              for x in forbidden_assets:
+                  if x in t: errors.append(f'{p}: forbidden asset {x}')
+              for x in forbidden_text:
+                  if x in t: errors.append(f'{p}: translated brand remains: {x}')
+              if 'landing-title' in t and not re.search(r'STRUCTURA\s+TOOLS',t,re.I): errors.append(f'{p}: landing brand missing')
+              if re.search(r'class=["\'][^"\']*\bbrand\b',t,re.I) and 'structura-logo-final.png' not in t: errors.append(f'{p}: definitive header logo missing')
+          if errors: raise SystemExit('\n'.join(errors))
+          print('Brand contract verified across all locales')
           PY
 
       - name: Commit normalized brand system
-        shell: bash
         run: |
-          if git diff --quiet && [ -z "$(git status --porcelain assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png 2>/dev/null)" ]; then
-            echo 'No changes required.'
-            exit 0
-          fi
+          if git diff --quiet && [ -z "$(git status --porcelain assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png 2>/dev/null)" ]; then exit 0; fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png '*.html'
