@@ -39,16 +39,26 @@ jobs:
           from PIL import Image, ImageFile
           import struct
 
-          ImageFile.LOAD_TRUNCATED_IMAGES = False
           assets = Path('assets')
 
           # Structura: exact NEW approved historical blob restored by SHA.
-          structura = assets / 'structura-logo-approved.jpg'
-          with Image.open(structura) as im:
+          # It is a JPEG truncated by only four terminal bytes. Decode this source once
+          # in tolerant mode and immediately rewrite it as a strict static PNG.
+          structura_src = assets / 'structura-logo-approved.jpg'
+          structura_dst = assets / 'structura-logo-current.png'
+          ImageFile.LOAD_TRUNCATED_IMAGES = True
+          with Image.open(structura_src) as im:
               im.load()
-              if im.width < 1 or im.height < 1 or getattr(im, 'n_frames', 1) != 1:
-                  raise SystemExit('Invalid restored approved Structura logo')
-              print(f'Structura approved: {im.width}x{im.height}, {im.format}')
+              if im.width < 1 or im.height < 1:
+                  raise SystemExit('Restored approved Structura source is empty')
+              out = im.convert('RGB')
+              out.save(structura_dst, format='PNG', optimize=True)
+          ImageFile.LOAD_TRUNCATED_IMAGES = False
+          with Image.open(structura_dst) as check:
+              check.load()
+              if check.width < 1 or check.height < 1 or getattr(check, 'n_frames', 1) != 1:
+                  raise SystemExit('Normalized Structura PNG is invalid')
+              print(f'Structura current normalized: {check.width}x{check.height}, {check.mode}')
 
           # Floor & Wall: rebuild a static WebP from the NEW official visual chunks,
           # dropping damaged trailing/container metadata. Never use floor-wall-icon.jpg.
@@ -102,20 +112,20 @@ jobs:
                   body += pack_chunk(b'ALPH', by_name[b'ALPH'][0])
               body += pack_chunk(b'VP8 ', by_name[b'VP8 '][0])
           else:
-              raise SystemExit(f'No recoverable visual chunk. Found: {[n for n,_ in chunks]}')
+              raise SystemExit(f'No recoverable Floor & Wall visual chunk. Found: {[n for n,_ in chunks]}')
 
           recovered = b'RIFF' + struct.pack('<I', len(body)) + bytes(body)
           recovered_path = Path('/tmp/floor-wall-recovered.webp')
           recovered_path.write_bytes(recovered)
-          print(f'Recovered static WebP: {len(recovered)} bytes')
+          print(f'Recovered Floor & Wall static WebP: {len(recovered)} bytes')
 
-          dst = assets / 'floor-wall-logo-current.png'
+          floor_dst = assets / 'floor-wall-logo-current.png'
           with Image.open(recovered_path) as im:
               im.seek(0)
               im.load()
               out = im.convert('RGBA' if im.mode in ('RGBA', 'LA') or 'transparency' in im.info else 'RGB')
-              out.save(dst, format='PNG', optimize=True)
-          with Image.open(dst) as check:
+              out.save(floor_dst, format='PNG', optimize=True)
+          with Image.open(floor_dst) as check:
               check.load()
               if check.width < 1 or check.height < 1 or getattr(check, 'n_frames', 1) != 1:
                   raise SystemExit('Recovered Floor & Wall PNG is invalid')
@@ -140,11 +150,12 @@ jobs:
           import re
 
           replacements = {
-              '/assets/structura-logo-official.webp': '/assets/structura-logo-approved.jpg',
-              '/assets/structura-logo-20260813.jpg': '/assets/structura-logo-approved.jpg',
-              '/assets/structura-logo-safe.png': '/assets/structura-logo-approved.jpg',
-              '/assets/structura-logo-clean.png': '/assets/structura-logo-approved.jpg',
-              '/assets/structura-logo.png': '/assets/structura-logo-approved.jpg',
+              '/assets/structura-logo-official.webp': '/assets/structura-logo-current.png',
+              '/assets/structura-logo-approved.jpg': '/assets/structura-logo-current.png',
+              '/assets/structura-logo-20260813.jpg': '/assets/structura-logo-current.png',
+              '/assets/structura-logo-safe.png': '/assets/structura-logo-current.png',
+              '/assets/structura-logo-clean.png': '/assets/structura-logo-current.png',
+              '/assets/structura-logo.png': '/assets/structura-logo-current.png',
               '/assets/floor-wall-logo-official.webp': '/assets/floor-wall-logo-current.png',
               '/assets/floor-wall-logo-safe.png': '/assets/floor-wall-logo-current.png',
               '/assets/floor-wall-icon.jpg': '/assets/floor-wall-logo-current.png',
@@ -159,14 +170,14 @@ jobs:
               original = text
               for old, new in replacements.items():
                   text = text.replace(old, new)
-              text = re.sub(r'v=202608(?:13|14|15)-[0-9A-Za-z-]+', 'v=20260815-0455', text)
-              text = re.sub(r'content="2026-08-(?:14|15)-[^"]+"', 'content="2026-08-15-approved-brand-0455"', text)
+              text = re.sub(r'v=202608(?:13|14|15)-[0-9A-Za-z-]+', 'v=20260815-0505', text)
+              text = re.sub(r'content="2026-08-(?:14|15)-[^"]+"', 'content="2026-08-15-approved-brand-0505"', text)
               if text != original:
                   page.write_text(text, encoding='utf-8')
                   print(f'Updated {page}')
           PY
 
-      - name: Block legacy visual fallbacks
+      - name: Block legacy and broken visual fallbacks
         shell: bash
         run: |
           python - <<'PY'
@@ -176,8 +187,10 @@ jobs:
               '/assets/structura-logo-clean.png',
               '/assets/structura-logo-safe.png',
               '/assets/structura-logo-20260813.jpg',
+              '/assets/structura-logo-approved.jpg',
               '/assets/floor-wall-icon.jpg',
               '/assets/floor-wall-logo-safe.png',
+              '/assets/floor-wall-logo-official.webp',
           ]
           errors = []
           for page in map(Path, ['index.html','road-click.html','floor-wall.html','buildings.html']):
@@ -193,12 +206,12 @@ jobs:
       - name: Commit current brand assets
         shell: bash
         run: |
-          if git diff --quiet && [ -z "$(git status --porcelain assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png 2>/dev/null)" ]; then
+          if git diff --quiet && [ -z "$(git status --porcelain assets/structura-logo-current.png assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png 2>/dev/null)" ]; then
             echo 'No changes required.'
             exit 0
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png index.html road-click.html floor-wall.html buildings.html
-          git commit -m 'Use approved current Structura and Floor Wall logos'
+          git add assets/structura-logo-current.png assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png index.html road-click.html floor-wall.html buildings.html
+          git commit -m 'Use normalized approved current Structura and Floor Wall logos'
           git push
