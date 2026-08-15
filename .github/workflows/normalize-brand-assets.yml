@@ -5,9 +5,11 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/normalize-brand-assets.yml'
+      - 'scripts/normalize_brand.py'
       - 'assets/structura-logo-final.png'
       - 'assets/road-click.webp'
       - 'assets/buildings.webp'
+      - '*.html'
   workflow_dispatch:
 
 permissions:
@@ -77,64 +79,15 @@ jobs:
                   im.seek(0); im.load(); im.convert('RGBA' if im.mode in ('RGBA','LA') or 'transparency' in im.info else 'RGB').save(a/d,'PNG',optimize=True)
           PY
 
-      - name: Normalize immutable brand across every locale
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import re
-          final='assets/structura-logo-final.png'
-          floor='assets/floor-wall-logo-current.png'
-          old_structura=['structura-logo-official.webp','structura-logo-current.png','structura-logo-approved.jpg','structura-logo-20260813.jpg','structura-logo-20260813.png','structura-logo-safe.png','structura-logo-clean.png','structura-logo.png']
-          old_floor=['floor-wall-logo-official.webp','floor-wall-logo-safe.png','floor-wall-icon.jpg']
-          translations={
-            'HERRAMIENTAS STRUCTURA':'STRUCTURA TOOLS','Herramientas Structura':'Structura Tools','Herramientas de estructura':'Structura Tools','ESTRUCTURA':'STRUCTURA TOOLS',
-            'EINES STRUCTURA':'STRUCTURA TOOLS','Eines Structura':'Structura Tools','OUTILS STRUCTURA':'STRUCTURA TOOLS','Outils Structura':'Structura Tools',
-            'STRUMENTI STRUCTURA':'STRUCTURA TOOLS','Strumenti Structura':'Structura Tools'
-          }
-          pages=sorted(Path('.').glob('*.html'))
-          for page in pages:
-              t=page.read_text(encoding='utf-8'); o=t
-              for name in old_structura:
-                  t=t.replace('/assets/'+name,'/'+final).replace('assets/'+name,final)
-              for name in old_floor:
-                  t=t.replace('/assets/'+name,'/'+floor).replace('assets/'+name,floor)
-              t=t.replace('/assets/road-click.webp','/assets/road-click-safe.png').replace('assets/road-click.webp','assets/road-click-safe.png')
-              t=t.replace('/assets/buildings.webp','/assets/buildings-safe.png').replace('assets/buildings.webp','assets/buildings-safe.png')
-              t=t.replace('/assets/pau-cols-founder.webp','/assets/pau-cols-final.jpg').replace('assets/pau-cols-founder.webp','assets/pau-cols-final.jpg')
-              t=re.sub(r'(<a\b[^>]*class=["\'][^"\']*\bbrand\b[^"\']*["\'][^>]*>.*?<span[^>]*>).*?(</span>)',r'\1STRUCTURA TOOLS\2',t,count=1,flags=re.I|re.S)
-              t=re.sub(r'(<h1\b[^>]*class=["\'][^"\']*\blanding-title\b[^"\']*["\'][^>]*>).*?(<span\b)',r'\1STRUCTURA TOOLS\2',t,count=1,flags=re.I|re.S)
-              t=re.sub(r'(<[^>]+class=["\'][^"\']*\bbrand-tile\b[^"\']*["\'][^>]*>.*?<strong[^>]*>).*?(</strong>)',r'\1Structura Tools\2',t,count=1,flags=re.I|re.S)
-              for a,b in translations.items(): t=t.replace(a,b)
-              t=re.sub(r'v=202608(?:13|14|15)-[0-9A-Za-z-]+','v=20260815-brand-final',t)
-              t=re.sub(r'content="2026-08-(?:14|15)-[^"]+"','content="2026-08-15-structura-tools-final-brand"',t)
-              if t!=o:
-                  page.write_text(t,encoding='utf-8'); print('Updated',page)
-          print('Processed',len(pages),'HTML pages')
-          PY
-
-      - name: Enforce Structura Tools brand contract
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import re
-          forbidden_assets=['structura-logo-official.webp','structura-logo-current.png','structura-logo.png','structura-logo-clean.png','structura-logo-safe.png','structura-logo-20260813.png','structura-logo-20260813.jpg','structura-logo-approved.jpg','floor-wall-icon.jpg','floor-wall-logo-safe.png','floor-wall-logo-official.webp']
-          forbidden_text=['HERRAMIENTAS STRUCTURA','ESTRUCTURA','EINES STRUCTURA','OUTILS STRUCTURA','STRUMENTI STRUCTURA']
-          errors=[]
-          for p in sorted(Path('.').glob('*.html')):
-              t=p.read_text(encoding='utf-8')
-              for x in forbidden_assets:
-                  if x in t: errors.append(f'{p}: forbidden asset {x}')
-              for x in forbidden_text:
-                  if x in t: errors.append(f'{p}: translated brand remains: {x}')
-              if 'landing-title' in t and not re.search(r'STRUCTURA\s+TOOLS',t,re.I): errors.append(f'{p}: landing brand missing')
-              if re.search(r'class=["\'][^"\']*\bbrand\b',t,re.I) and 'structura-logo-final.png' not in t: errors.append(f'{p}: definitive header logo missing')
-          if errors: raise SystemExit('\n'.join(errors))
-          print('Brand contract verified across all locales')
-          PY
+      - name: Normalize and verify immutable Structura Tools brand
+        run: python scripts/normalize_brand.py
 
       - name: Commit normalized brand system
         run: |
-          if git diff --quiet && [ -z "$(git status --porcelain assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png 2>/dev/null)" ]; then exit 0; fi
+          if git diff --quiet && [ -z "$(git status --porcelain assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png 2>/dev/null)" ]; then
+            echo 'No changes required.'
+            exit 0
+          fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png '*.html'
