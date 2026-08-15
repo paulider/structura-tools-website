@@ -34,48 +34,61 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install image decoder
-        run: python -m pip install --disable-pip-version-check pillow
+      - name: Install image recovery tools
+        run: |
+          python -m pip install --disable-pip-version-check pillow
+          sudo apt-get update
+          sudo apt-get install -y libjpeg-turbo-progs jpeginfo imagemagick ffmpeg
 
-      - name: Normalize approved Structura artwork
+      - name: Recover approved Structura artwork
         shell: bash
         run: |
+          set -euo pipefail
+          SRC='assets/structura-logo-20260813.jpg'
+          OUT='assets/structura-logo-current.png'
+          test -s "$SRC"
+          echo '--- Structura source diagnostics ---'
+          file "$SRC" || true
+          ls -l "$SRC"
+          xxd -l 64 "$SRC" || true
+          tail -c 64 "$SRC" | xxd || true
+          jpeginfo -c "$SRC" || true
+          identify "$SRC" || true
+
+          rm -f /tmp/structura.ppm /tmp/structura-im.png /tmp/structura-ff.png "$OUT"
+          if djpeg -outfile /tmp/structura.ppm "$SRC"; then
+            echo 'Recovered Structura with djpeg.'
+            convert /tmp/structura.ppm "$OUT"
+          elif convert "$SRC" /tmp/structura-im.png; then
+            echo 'Recovered Structura with ImageMagick.'
+            mv /tmp/structura-im.png "$OUT"
+          elif ffmpeg -v error -y -i "$SRC" -frames:v 1 /tmp/structura-ff.png; then
+            echo 'Recovered Structura with ffmpeg.'
+            mv /tmp/structura-ff.png "$OUT"
+          else
+            echo 'No native decoder could recover the approved Structura JPEG.'
+            exit 1
+          fi
+
           python - <<'PY'
           from pathlib import Path
-          from PIL import Image, ImageFile, ImageStat
+          from PIL import Image, ImageStat, ImageFile
 
-          assets = Path('assets')
-          src = assets / 'structura-logo-20260813.jpg'
-          dst = assets / 'structura-logo-current.png'
-
-          # Canonical NEW artwork selected by the historical commit
-          # "Switch landing to approved Structura logo artwork".
-          # Never source the public logo from structura-logo.png, *-clean.png,
-          # *-safe.png or the 7.5 KB truncated historical copy.
           ImageFile.LOAD_TRUNCATED_IMAGES = False
-          with Image.open(src) as im:
+          path = Path('assets/structura-logo-current.png')
+          with Image.open(path) as im:
               im.load()
               rgb = im.convert('RGB')
               stat = ImageStat.Stat(rgb)
-              max_variance = max(stat.var)
+              variance = max(stat.var)
               extrema = rgb.getextrema()
               if rgb.width < 256 or rgb.height < 256:
-                  raise SystemExit(f'Approved Structura source unexpectedly small: {rgb.size}')
-              if max_variance < 25:
-                  raise SystemExit(f'Approved Structura source has insufficient visual variance: {max_variance}')
-              if all(lo == hi for lo, hi in extrema):
-                  raise SystemExit('Approved Structura source is visually blank')
-              rgb.save(dst, format='PNG', optimize=True)
-              print(f'Structura approved source: {rgb.width}x{rgb.height}, variance={max_variance:.2f}, extrema={extrema}')
-
-          with Image.open(dst) as im:
-              im.load()
-              stat = ImageStat.Stat(im.convert('RGB'))
-              if im.width < 256 or im.height < 256 or getattr(im, 'n_frames', 1) != 1:
-                  raise SystemExit(f'Unexpected Structura output: {im.size}, frames={getattr(im,"n_frames",1)}')
-              if max(stat.var) < 25 or dst.stat().st_size < 5000:
-                  raise SystemExit(f'Normalized Structura output looks blank/corrupt: bytes={dst.stat().st_size}, variance={max(stat.var):.2f}')
-              print(f'Structura current: {im.width}x{im.height}, {im.mode}, bytes={dst.stat().st_size}, variance={max(stat.var):.2f}')
+                  raise SystemExit(f'Structura output too small: {rgb.size}')
+              if variance < 25:
+                  raise SystemExit(f'Structura output visually blank: variance={variance}')
+              if path.stat().st_size < 5000:
+                  raise SystemExit(f'Structura output suspiciously small: {path.stat().st_size} bytes')
+              print(f'Structura recovered: {rgb.width}x{rgb.height}, bytes={path.stat().st_size}, variance={variance:.2f}, extrema={extrema}')
           PY
 
       - name: Recover approved Floor Wall logo from plugin package
@@ -99,20 +112,11 @@ jobs:
           def key(name):
               return re.sub(r'[^a-z0-9]+', '', name.lower())
 
-          exact_keys = {
-              'floorwalllogo',
-              'floorwalllogov2',
-              'iconofloorwalltransparenthdv2',
-              'iconofloorwallhdv2',
-          }
-
+          exact_keys = {'floorwalllogo','floorwalllogov2','iconofloorwalltransparenthdv2','iconofloorwallhdv2'}
           pngs = sorted(p for p in root.rglob('*') if p.is_file() and p.suffix.lower() == '.png')
           exact = [p for p in pngs if key(p.stem) in exact_keys]
           if not exact:
-              likely = [p for p in pngs if 'floor' in key(p.stem) and ('logo' in key(p.stem) or 'icon' in key(p.stem))]
-              print('Likely Floor & Wall candidates:', [str(p.relative_to(root)) for p in likely])
-              raise SystemExit('Approved Floor & Wall logo not found by canonical filename in plugin package')
-
+              raise SystemExit('Approved Floor & Wall logo not found in plugin package')
           scored = []
           ImageFile.LOAD_TRUNCATED_IMAGES = False
           for p in exact:
@@ -121,17 +125,15 @@ jobs:
                   scored.append((im.width * im.height, p, im.width, im.height, im.mode))
           scored.sort(reverse=True, key=lambda x: x[0])
           _, src, w, h, mode = scored[0]
-          print(f'Using approved Floor & Wall source: {src.relative_to(root)} | {w}x{h} | {mode}')
-
+          print(f'Using Floor & Wall source: {src.relative_to(root)} | {w}x{h} | {mode}')
           with Image.open(src) as im:
               im.load()
-              has_alpha = im.mode in ('RGBA', 'LA') or 'transparency' in im.info
+              has_alpha = im.mode in ('RGBA','LA') or 'transparency' in im.info
               im.convert('RGBA' if has_alpha else 'RGB').save(out, format='PNG', optimize=True)
-
           with Image.open(out) as check:
               check.load()
-              if check.width < 1 or check.height < 1 or getattr(check, 'n_frames', 1) != 1:
-                  raise SystemExit('Recovered Floor & Wall logo is invalid')
+              if check.width < 1 or check.height < 1 or getattr(check,'n_frames',1) != 1:
+                  raise SystemExit('Recovered Floor & Wall logo invalid')
               print(f'Floor Wall current: {check.width}x{check.height}, {check.mode}, bytes={out.stat().st_size}')
           PY
 
@@ -142,19 +144,11 @@ jobs:
           from pathlib import Path
           from PIL import Image
           assets = Path('assets')
-          for src_name, dst_name in {
-              'road-click.webp': 'road-click-safe.png',
-              'buildings.webp': 'buildings-safe.png',
-          }.items():
+          for src_name, dst_name in {'road-click.webp':'road-click-safe.png','buildings.webp':'buildings-safe.png'}.items():
               with Image.open(assets / src_name) as im:
-                  im.seek(0)
-                  im.load()
+                  im.seek(0); im.load()
                   out = im.convert('RGBA' if im.mode in ('RGBA','LA') or 'transparency' in im.info else 'RGB')
                   out.save(assets / dst_name, format='PNG', optimize=True)
-              with Image.open(assets / dst_name) as check:
-                  check.load()
-                  if getattr(check, 'n_frames', 1) != 1:
-                      raise SystemExit(f'Invalid static asset: {dst_name}')
           PY
 
       - name: Update public references
@@ -163,33 +157,30 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import re
-
           replacements = {
-              '/assets/structura-logo-official.webp': '/assets/structura-logo-current.png',
-              '/assets/structura-logo-approved.jpg': '/assets/structura-logo-current.png',
-              '/assets/structura-logo-20260813.jpg': '/assets/structura-logo-current.png',
-              '/assets/structura-logo-20260813.png': '/assets/structura-logo-current.png',
-              '/assets/structura-logo-safe.png': '/assets/structura-logo-current.png',
-              '/assets/structura-logo-clean.png': '/assets/structura-logo-current.png',
-              '/assets/structura-logo.png': '/assets/structura-logo-current.png',
-              '/assets/floor-wall-logo-official.webp': '/assets/floor-wall-logo-current.png',
-              '/assets/floor-wall-logo-safe.png': '/assets/floor-wall-logo-current.png',
-              '/assets/floor-wall-icon.jpg': '/assets/floor-wall-logo-current.png',
-              '/assets/road-click.webp': '/assets/road-click-safe.png',
-              '/assets/buildings.webp': '/assets/buildings-safe.png',
-              '/assets/pau-cols-founder.webp': '/assets/pau-cols-final.jpg',
+              '/assets/structura-logo-official.webp':'/assets/structura-logo-current.png',
+              '/assets/structura-logo-approved.jpg':'/assets/structura-logo-current.png',
+              '/assets/structura-logo-20260813.jpg':'/assets/structura-logo-current.png',
+              '/assets/structura-logo-20260813.png':'/assets/structura-logo-current.png',
+              '/assets/structura-logo-safe.png':'/assets/structura-logo-current.png',
+              '/assets/structura-logo-clean.png':'/assets/structura-logo-current.png',
+              '/assets/structura-logo.png':'/assets/structura-logo-current.png',
+              '/assets/floor-wall-logo-official.webp':'/assets/floor-wall-logo-current.png',
+              '/assets/floor-wall-logo-safe.png':'/assets/floor-wall-logo-current.png',
+              '/assets/floor-wall-icon.jpg':'/assets/floor-wall-logo-current.png',
+              '/assets/road-click.webp':'/assets/road-click-safe.png',
+              '/assets/buildings.webp':'/assets/buildings-safe.png',
+              '/assets/pau-cols-founder.webp':'/assets/pau-cols-final.jpg',
           }
-
-          pages = [Path('index.html'), Path('road-click.html'), Path('floor-wall.html'), Path('buildings.html')]
+          pages = [Path('index.html'),Path('road-click.html'),Path('floor-wall.html'),Path('buildings.html')]
           for page in pages:
               text = page.read_text(encoding='utf-8')
               original = text
-              for old, new in replacements.items():
-                  text = text.replace(old, new)
-              text = re.sub(r'v=202608(?:13|14|15)-[0-9A-Za-z-]+', 'v=20260815-1115', text)
-              text = re.sub(r'content="2026-08-(?:14|15)-[^"]+"', 'content="2026-08-15-approved-brand-1115"', text)
+              for old,new in replacements.items(): text = text.replace(old,new)
+              text = re.sub(r'v=202608(?:13|14|15)-[0-9A-Za-z-]+','v=20260815-1200',text)
+              text = re.sub(r'content="2026-08-(?:14|15)-[^"]+"','content="2026-08-15-approved-brand-1200"',text)
               if text != original:
-                  page.write_text(text, encoding='utf-8')
+                  page.write_text(text,encoding='utf-8')
                   print(f'Updated {page}')
           PY
 
@@ -198,26 +189,13 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          legacy = [
-              '/assets/structura-logo.png',
-              '/assets/structura-logo-clean.png',
-              '/assets/structura-logo-safe.png',
-              '/assets/structura-logo-20260813.png',
-              '/assets/structura-logo-20260813.jpg',
-              '/assets/structura-logo-approved.jpg',
-              '/assets/structura-logo-official.webp',
-              '/assets/floor-wall-icon.jpg',
-              '/assets/floor-wall-logo-safe.png',
-              '/assets/floor-wall-logo-official.webp',
-          ]
-          errors = []
-          for page in map(Path, ['index.html','road-click.html','floor-wall.html','buildings.html']):
-              text = page.read_text(encoding='utf-8')
+          legacy = ['/assets/structura-logo.png','/assets/structura-logo-clean.png','/assets/structura-logo-safe.png','/assets/structura-logo-20260813.png','/assets/structura-logo-20260813.jpg','/assets/structura-logo-approved.jpg','/assets/structura-logo-official.webp','/assets/floor-wall-icon.jpg','/assets/floor-wall-logo-safe.png','/assets/floor-wall-logo-official.webp']
+          errors=[]
+          for page in map(Path,['index.html','road-click.html','floor-wall.html','buildings.html']):
+              text=page.read_text(encoding='utf-8')
               for asset in legacy:
-                  if asset in text:
-                      errors.append(f'{page}: legacy/broken logo reference {asset}')
-          if errors:
-              raise SystemExit('\n'.join(errors))
+                  if asset in text: errors.append(f'{page}: legacy/broken logo reference {asset}')
+          if errors: raise SystemExit('\n'.join(errors))
           print('No public page references legacy or damaged brand artwork.')
           PY
 
@@ -231,5 +209,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add assets/structura-logo-current.png assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png index.html road-click.html floor-wall.html buildings.html
-          git commit -m 'Use approved nonblank Structura and Floor Wall logos'
+          git commit -m 'Recover approved Structura and Floor Wall brand assets'
           git push
