@@ -18,7 +18,7 @@ jobs:
       - name: Install image decoder
         run: python -m pip install --disable-pip-version-check pillow
 
-      - name: Validate references, full image decoding and current brand assets
+      - name: Validate references, images and immutable Structura Tools brand
         shell: bash
         run: |
           python - <<'PY'
@@ -28,37 +28,67 @@ jobs:
           import sys
           from pathlib import Path
           from urllib.parse import urlsplit
-          from PIL import Image, ImageFile
+          from PIL import Image, ImageFile, ImageStat
 
           ImageFile.LOAD_TRUNCATED_IMAGES = False
           errors = []
           refs = set()
 
-          public_brand_pages = {
-              'index.html',
-              'road-click.html',
-              'floor-wall.html',
-              'buildings.html',
-          }
-
-          legacy_public_assets = {
+          legacy_assets = {
+              'assets/structura-logo-official.webp',
+              'assets/structura-logo-current.png',
               'assets/structura-logo.png',
               'assets/structura-logo-clean.png',
               'assets/structura-logo-safe.png',
+              'assets/structura-logo-20260813.png',
+              'assets/structura-logo-20260813.jpg',
+              'assets/structura-logo-approved.jpg',
               'assets/floor-wall-icon.jpg',
               'assets/floor-wall-logo-safe.png',
+              'assets/floor-wall-logo-official.webp',
+          }
+
+          translated_brand = {
+              'HERRAMIENTAS STRUCTURA',
+              'ESTRUCTURA',
+              'EINES STRUCTURA',
+              'OUTILS STRUCTURA',
+              'STRUMENTI STRUCTURA',
           }
 
           required_current = [
-              Path('assets/structura-logo-20260813.jpg'),
+              Path('assets/structura-logo-final.png'),
               Path('assets/floor-wall-logo-current.png'),
               Path('assets/road-click-safe.png'),
               Path('assets/buildings-safe.png'),
               Path('assets/pau-cols-final.jpg'),
           ]
 
-          for html in glob.glob('*.html'):
-              text = open(html, encoding='utf-8').read()
+          html_files = sorted(glob.glob('*.html'))
+          for html in html_files:
+              text = Path(html).read_text(encoding='utf-8')
+
+              for phrase in translated_brand:
+                  if phrase in text:
+                      errors.append(f'{html}: translated Structura Tools brand remains: {phrase}')
+
+              brand = re.search(r'<a\b[^>]*class=["\'][^"\']*\bbrand\b[^"\']*["\'][^>]*>.*?</a>', text, re.I | re.S)
+              if brand:
+                  block = brand.group(0)
+                  if 'structura-logo-final.png' not in block:
+                      errors.append(f'{html}: header does not use definitive Structura logo')
+                  plain = re.sub(r'<[^>]+>', ' ', block)
+                  if not re.search(r'\bSTRUCTURA\s+TOOLS\b', plain, re.I):
+                      errors.append(f'{html}: header brand name is not Structura Tools')
+
+              if 'landing-title' in text:
+                  title = re.search(r'<h1\b[^>]*class=["\'][^"\']*\blanding-title\b[^"\']*["\'][^>]*>(.*?)</h1>', text, re.I | re.S)
+                  if title and not re.match(r'\s*STRUCTURA TOOLS\s*<span\b', title.group(1), re.I | re.S):
+                      errors.append(f'{html}: landing hero brand name is not Structura Tools')
+                  hero_logo = re.search(r'<img\b[^>]*class=["\'][^"\']*\blanding-hero-logo\b[^"\']*["\'][^>]*>', text, re.I | re.S)
+                  if hero_logo and 'structura-logo-final.png' not in hero_logo.group(0):
+                      errors.append(f'{html}: landing hero does not use definitive Structura logo')
+
               local_refs = re.findall(r'(?:src|href)=["\']([^"\']+)', text)
               for ref in local_refs:
                   if ref.startswith(('http://', 'https://', 'mailto:', '#', 'data:')):
@@ -70,11 +100,8 @@ jobs:
                   if path.endswith('/'):
                       path += 'index.html'
                   refs.add((html, path))
-
-                  if html in public_brand_pages and path.lower().endswith('.webp'):
-                      errors.append(f'{html}: direct WebP reference forbidden: {path}')
-                  if html in public_brand_pages and path in legacy_public_assets:
-                      errors.append(f'{html}: legacy brand artwork referenced: {path}')
+                  if path in legacy_assets:
+                      errors.append(f'{html}: legacy/broken brand asset referenced: {path}')
 
           for html, path in sorted(refs):
               if not os.path.isfile(path):
@@ -91,11 +118,18 @@ jobs:
                           errors.append(f'zero-sized public asset: {path}')
                       if getattr(im, 'n_frames', 1) != 1:
                           errors.append(f'public asset must be static: {path}')
+                      if path.name == 'structura-logo-final.png':
+                          rgba = im.convert('RGBA')
+                          lo, hi = rgba.getchannel('A').getextrema()
+                          if lo == 255:
+                              errors.append('definitive Structura logo lost transparent background')
+                          if max(ImageStat.Stat(rgba.convert('RGB')).var) < 25:
+                              errors.append('definitive Structura logo appears visually blank')
               except Exception as exc:
                   errors.append(f'invalid current public asset: {path}: {exc}')
 
-          # Decode every non-source raster fully. Source WebPs may be malformed in
-          # metadata but are never allowed to be referenced directly by public pages.
+          # Fully decode public non-WebP raster assets. Source WebPs can remain only as
+          # internal normalization inputs; HTML is forbidden from referencing them.
           for path in sorted(glob.glob('assets/*')):
               if not os.path.isfile(path):
                   continue
@@ -120,5 +154,5 @@ jobs:
               print('\n'.join(errors))
               sys.exit(1)
 
-          print(f'Validated {len(refs)} references and current approved brand assets; no legacy public artwork detected.')
+          print(f'Validated {len(html_files)} HTML pages, {len(refs)} local references and the definitive Structura Tools brand contract.')
           PY
