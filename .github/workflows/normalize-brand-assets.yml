@@ -6,7 +6,6 @@ on:
     paths:
       - '.github/workflows/normalize-brand-assets.yml'
       - 'assets/structura-logo-official.webp'
-      - 'assets/structura-logo.png'
       - 'assets/road-click.webp'
       - 'assets/buildings.webp'
   workflow_dispatch:
@@ -35,10 +34,10 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install image tools
-        run: python -m pip install --disable-pip-version-check pillow imagehash
+      - name: Install image decoder
+        run: python -m pip install --disable-pip-version-check pillow
 
-      - name: Extract plugin brand sources
+      - name: Recover current Floor Wall logo from plugin package
         shell: bash
         run: |
           set -euo pipefail
@@ -47,138 +46,23 @@ jobs:
           rm -rf /tmp/floor-wall-rbz
           mkdir -p /tmp/floor-wall-rbz
           unzip -q "$RBZ" -d /tmp/floor-wall-rbz
-          find /tmp/floor-wall-rbz -type f \( -iname '*structura*logo*.png' -o -iname '*floor*wall*logo*.png' \) -print
-
-      - name: Verify and normalize current Structura logo
-        shell: bash
-        run: |
           python - <<'PY'
           from pathlib import Path
-          from PIL import Image, ImageFile, ImageChops, ImageStat, ImageFilter
-          import imagehash
-          import math
+          from PIL import Image
 
-          ImageFile.LOAD_TRUNCATED_IMAGES = True
-          root = Path('/tmp/floor-wall-rbz')
-          candidates = sorted(root.rglob('structura_logo_128.png'))
-          if not candidates:
-              raise SystemExit('No structura_logo_128.png found in current Floor & Wall package')
-          candidate_path = candidates[0]
-          approved_broken = Path('assets/structura-logo-official.webp')
-          legacy = Path('assets/structura-logo.png')
-          out_path = Path('assets/structura-logo-current.png')
-
-          def flatten(path, size=256):
-              with Image.open(path) as im:
-                  im.seek(0)
-                  im.load()
-                  rgba = im.convert('RGBA')
-                  bg = Image.new('RGBA', rgba.size, (255,255,255,255))
-                  bg.alpha_composite(rgba)
-                  return bg.convert('RGB').resize((size,size), Image.Resampling.LANCZOS)
-
-          def top_crop(im, ratio=0.72):
-              return im.crop((0, 0, im.width, int(im.height * ratio)))
-
-          def mae(a, b):
-              diff = ImageChops.difference(a, b)
-              stat = ImageStat.Stat(diff)
-              return sum(stat.mean) / len(stat.mean)
-
-          def edge_mae(a, b):
-              ea = a.convert('L').filter(ImageFilter.FIND_EDGES)
-              eb = b.convert('L').filter(ImageFilter.FIND_EDGES)
-              return ImageStat.Stat(ImageChops.difference(ea, eb)).mean[0]
-
-          candidate = flatten(candidate_path)
-          approved = flatten(approved_broken)
-          old = flatten(legacy)
-          c = top_crop(candidate)
-          a = top_crop(approved)
-          o = top_crop(old)
-
-          mae_new = mae(c, a)
-          mae_old = mae(c, o)
-          edge_new = edge_mae(c, a)
-          edge_old = edge_mae(c, o)
-          ph_c = imagehash.phash(c)
-          ph_new = imagehash.phash(a)
-          ph_old = imagehash.phash(o)
-          ph_new_dist = ph_c - ph_new
-          ph_old_dist = ph_c - ph_old
-
-          print(f'Candidate: {candidate_path.relative_to(root)}')
-          print(f'MAE to NEW approved upper 72%: {mae_new:.3f}')
-          print(f'MAE to OLD legacy upper 72%: {mae_old:.3f}')
-          print(f'Edge MAE to NEW: {edge_new:.3f}')
-          print(f'Edge MAE to OLD: {edge_old:.3f}')
-          print(f'pHash distance to NEW: {ph_new_dist}')
-          print(f'pHash distance to OLD: {ph_old_dist}')
-
-          # Accept only if the plugin source is demonstrably closer to the new approved
-          # artwork than to the old wireframe identity. This prevents silent regression.
-          score_new = mae_new + edge_new + ph_new_dist * 2.0
-          score_old = mae_old + edge_old + ph_old_dist * 2.0
-          print(f'Composite score NEW={score_new:.3f}, OLD={score_old:.3f}')
-          if not (score_new < score_old * 0.88 and ph_new_dist <= ph_old_dist):
-              raise SystemExit('Plugin Structura candidate does not match the approved NEW identity closely enough; refusing legacy fallback')
-
-          # Preserve the exact clean package artwork. Upscale only for web raster density;
-          # no geometry/content edits are applied.
-          with Image.open(candidate_path) as im:
-              im.load()
-              rgba = im.convert('RGBA')
-              if rgba.width < 64 or rgba.height < 64:
-                  raise SystemExit(f'Candidate unexpectedly small: {rgba.size}')
-              rgba = rgba.resize((512, 512), Image.Resampling.LANCZOS)
-              rgba.save(out_path, format='PNG', optimize=True)
-
-          ImageFile.LOAD_TRUNCATED_IMAGES = False
-          with Image.open(out_path) as check:
-              check.load()
-              variance = max(ImageStat.Stat(check.convert('RGB')).var)
-              if check.width != 512 or check.height != 512 or variance < 25 or out_path.stat().st_size < 5000:
-                  raise SystemExit(f'Normalized Structura output invalid/blank: size={check.size}, bytes={out_path.stat().st_size}, variance={variance:.2f}')
-              print(f'Structura current verified: {check.width}x{check.height}, bytes={out_path.stat().st_size}, variance={variance:.2f}')
-          PY
-
-      - name: Recover approved Floor Wall logo from plugin package
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          from PIL import Image, ImageFile
-          import re
-
-          root = Path('/tmp/floor-wall-rbz')
-          out = Path('assets/floor-wall-logo-current.png')
-
-          def key(name):
-              return re.sub(r'[^a-z0-9]+', '', name.lower())
-
-          exact_keys = {'floorwalllogo','floorwalllogov2','iconofloorwalltransparenthdv2','iconofloorwallhdv2'}
-          pngs = sorted(p for p in root.rglob('*') if p.is_file() and p.suffix.lower() == '.png')
-          exact = [p for p in pngs if key(p.stem) in exact_keys]
-          if not exact:
-              raise SystemExit('Approved Floor & Wall logo not found in plugin package')
-          scored = []
-          ImageFile.LOAD_TRUNCATED_IMAGES = False
-          for p in exact:
-              with Image.open(p) as im:
-                  im.load()
-                  scored.append((im.width * im.height, p, im.width, im.height, im.mode))
-          scored.sort(reverse=True, key=lambda x: x[0])
-          _, src, w, h, mode = scored[0]
-          print(f'Using approved Floor & Wall source: {src.relative_to(root)} | {w}x{h} | {mode}')
+          src = Path('/tmp/floor-wall-rbz/structura_floor_wall/icons/floor_wall_logo.png')
+          dst = Path('assets/floor-wall-logo-current.png')
+          if not src.is_file():
+              raise SystemExit('Current Floor & Wall logo is missing from plugin package')
           with Image.open(src) as im:
               im.load()
-              has_alpha = im.mode in ('RGBA','LA') or 'transparency' in im.info
-              im.convert('RGBA' if has_alpha else 'RGB').save(out, format='PNG', optimize=True)
-          with Image.open(out) as check:
+              out = im.convert('RGBA' if im.mode in ('RGBA','LA') or 'transparency' in im.info else 'RGB')
+              out.save(dst, format='PNG', optimize=True)
+          with Image.open(dst) as check:
               check.load()
               if check.width < 1 or check.height < 1 or getattr(check,'n_frames',1) != 1:
-                  raise SystemExit('Recovered Floor & Wall logo invalid')
-              print(f'Floor Wall current: {check.width}x{check.height}, {check.mode}, bytes={out.stat().st_size}')
+                  raise SystemExit('Recovered Floor & Wall logo is invalid')
+              print(f'Floor Wall current: {check.width}x{check.height}, {check.mode}, bytes={dst.stat().st_size}')
           PY
 
       - name: Normalize Road Click and Buildings
@@ -195,71 +79,79 @@ jobs:
                   out.save(assets / dst_name, format='PNG', optimize=True)
           PY
 
-      - name: Update public references
+      - name: Update public references without legacy fallbacks
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
           import re
-          replacements = {
-              '/assets/structura-logo-official.webp':'/assets/structura-logo-current.png',
-              '/assets/structura-logo-approved.jpg':'/assets/structura-logo-current.png',
-              '/assets/structura-logo-20260813.jpg':'/assets/structura-logo-current.png',
-              '/assets/structura-logo-20260813.png':'/assets/structura-logo-current.png',
-              '/assets/structura-logo-safe.png':'/assets/structura-logo-current.png',
-              '/assets/structura-logo-clean.png':'/assets/structura-logo-current.png',
-              '/assets/structura-logo.png':'/assets/structura-logo-current.png',
-              '/assets/floor-wall-logo-official.webp':'/assets/floor-wall-logo-current.png',
-              '/assets/floor-wall-logo-safe.png':'/assets/floor-wall-logo-current.png',
-              '/assets/floor-wall-icon.jpg':'/assets/floor-wall-logo-current.png',
-              '/assets/road-click.webp':'/assets/road-click-safe.png',
-              '/assets/buildings.webp':'/assets/buildings-safe.png',
-              '/assets/pau-cols-founder.webp':'/assets/pau-cols-final.jpg',
-          }
+
+          # Structura: keep the CURRENT approved identity as the source of truth.
+          # Do not substitute any historical wireframe icon or the blank generated PNG.
+          structura_old = [
+              '/assets/structura-logo-current.png',
+              '/assets/structura-logo-approved.jpg',
+              '/assets/structura-logo-20260813.jpg',
+              '/assets/structura-logo-20260813.png',
+              '/assets/structura-logo-safe.png',
+              '/assets/structura-logo-clean.png',
+              '/assets/structura-logo.png',
+          ]
+          floor_old = [
+              '/assets/floor-wall-logo-official.webp',
+              '/assets/floor-wall-logo-safe.png',
+              '/assets/floor-wall-icon.jpg',
+          ]
+
           pages = [Path('index.html'),Path('road-click.html'),Path('floor-wall.html'),Path('buildings.html')]
           for page in pages:
               text = page.read_text(encoding='utf-8')
               original = text
-              for old,new in replacements.items():
-                  text = text.replace(old,new)
-              text = re.sub(r'v=202608(?:13|14|15)-[0-9A-Za-z-]+','v=20260815-1245',text)
-              text = re.sub(r'content="2026-08-(?:14|15)-[^"]+"','content="2026-08-15-approved-brand-1245"',text)
+              for old in structura_old:
+                  text = text.replace(old, '/assets/structura-logo-official.webp')
+              for old in floor_old:
+                  text = text.replace(old, '/assets/floor-wall-logo-current.png')
+              text = text.replace('/assets/road-click.webp','/assets/road-click-safe.png')
+              text = text.replace('/assets/buildings.webp','/assets/buildings-safe.png')
+              text = text.replace('/assets/pau-cols-founder.webp','/assets/pau-cols-final.jpg')
+              text = re.sub(r'v=202608(?:13|14|15)-[0-9A-Za-z-]+','v=20260815-1310',text)
+              text = re.sub(r'content="2026-08-(?:14|15)-[^"]+"','content="2026-08-15-current-brand-1310"',text)
               if text != original:
                   page.write_text(text,encoding='utf-8')
                   print(f'Updated {page}')
           PY
 
-      - name: Block legacy and broken logo references
+      - name: Block old Structura and Floor Wall artwork
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
-          legacy = [
+          forbidden = [
               '/assets/structura-logo.png','/assets/structura-logo-clean.png','/assets/structura-logo-safe.png',
               '/assets/structura-logo-20260813.png','/assets/structura-logo-20260813.jpg','/assets/structura-logo-approved.jpg',
-              '/assets/structura-logo-official.webp','/assets/floor-wall-icon.jpg','/assets/floor-wall-logo-safe.png',
+              '/assets/structura-logo-current.png','/assets/floor-wall-icon.jpg','/assets/floor-wall-logo-safe.png',
               '/assets/floor-wall-logo-official.webp'
           ]
           errors=[]
           for page in map(Path,['index.html','road-click.html','floor-wall.html','buildings.html']):
               text=page.read_text(encoding='utf-8')
-              for asset in legacy:
+              for asset in forbidden:
                   if asset in text:
-                      errors.append(f'{page}: legacy/broken logo reference {asset}')
+                      errors.append(f'{page}: forbidden legacy/broken logo reference {asset}')
           if errors:
               raise SystemExit('\n'.join(errors))
-          print('No public page references legacy or damaged brand artwork.')
+          print('No public page references old Structura or old Floor & Wall artwork.')
           PY
 
       - name: Commit normalized current assets
         shell: bash
         run: |
-          if git diff --quiet && [ -z "$(git status --porcelain assets/structura-logo-current.png assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png 2>/dev/null)" ]; then
+          if git diff --quiet && [ -z "$(git status --porcelain assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png 2>/dev/null)" ]; then
             echo 'No changes required.'
             exit 0
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add assets/structura-logo-current.png assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png index.html road-click.html floor-wall.html buildings.html
-          git commit -m 'Use verified current Structura and Floor Wall logos'
+          git add assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png index.html road-click.html floor-wall.html buildings.html
+          git commit -m 'Restore current Structura identity and Floor Wall logo'
           git push
