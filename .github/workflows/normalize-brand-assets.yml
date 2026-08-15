@@ -27,50 +27,108 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install image tools
-        run: |
-          python -m pip install --disable-pip-version-check pillow
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
+      - name: Install image decoder
+        run: python -m pip install --disable-pip-version-check pillow
 
-      - name: Build current production assets
+      - name: Recover and validate current production artwork
         shell: bash
         run: |
           set -euo pipefail
-          test -s assets/structura-logo-20260813.jpg
-          test -s assets/floor-wall-logo-official.webp
-
-          # Floor & Wall must preserve the NEW official artwork. Extract the visual
-          # frame into a static PNG; never substitute the historical floor-wall-icon.jpg.
-          ffmpeg -v error -y -i assets/floor-wall-logo-official.webp -frames:v 1 /tmp/floor-wall-logo-current.png
-
           python - <<'PY'
           from pathlib import Path
           from PIL import Image, ImageFile
+          import struct
 
           ImageFile.LOAD_TRUNCATED_IMAGES = False
           assets = Path('assets')
 
-          # Approved current Structura artwork. This file is intentionally used
-          # directly; structura-logo.png / *-clean.png are legacy artwork.
-          with Image.open(assets / 'structura-logo-20260813.jpg') as im:
+          # ----- Structura -----
+          # Canonical NEW approved artwork. Never use structura-logo.png,
+          # structura-logo-clean.png or structura-logo-safe.png as a fallback.
+          structura = assets / 'structura-logo-20260813.jpg'
+          with Image.open(structura) as im:
               im.load()
               if im.width < 1 or im.height < 1 or getattr(im, 'n_frames', 1) != 1:
                   raise SystemExit('Invalid approved Structura logo')
               print(f'Structura current: {im.width}x{im.height}, {im.format}')
 
-          src = Path('/tmp/floor-wall-logo-current.png')
+          # ----- Floor & Wall -----
+          # The official NEW WebP has damaged trailing/container metadata. Both Pillow
+          # and ffmpeg reject the complete container. Recover the exact visual payload
+          # by rebuilding a static WebP from its VP8X/ALPH/VP8(L) chunks and dropping
+          # ANIM/ANMF or any damaged trailing metadata. This does NOT alter the artwork.
+          source = assets / 'floor-wall-logo-official.webp'
+          raw = source.read_bytes()
+          if len(raw) < 20 or raw[:4] != b'RIFF' or raw[8:12] != b'WEBP':
+              raise SystemExit('Floor & Wall source is not a RIFF WebP')
+
+          chunks = []
+          off = 12
+          while off + 8 <= len(raw):
+              fourcc = raw[off:off+4]
+              size = struct.unpack_from('<I', raw, off + 4)[0]
+              start = off + 8
+              end = start + size
+              if end > len(raw):
+                  print(f'Trailing damaged chunk {fourcc!r}: declared={size}, available={len(raw)-start}')
+                  break
+              payload = raw[start:end]
+              chunks.append((fourcc, payload))
+              print(f'WebP chunk {fourcc.decode("latin1")!r}: {size} bytes')
+              off = end + (size & 1)
+
+          by_name = {}
+          for name, payload in chunks:
+              by_name.setdefault(name, []).append(payload)
+
+          def pack_chunk(name, payload):
+              out = name + struct.pack('<I', len(payload)) + payload
+              if len(payload) & 1:
+                  out += b'\x00'
+              return out
+
+          body = bytearray(b'WEBP')
+          if b'VP8L' in by_name:
+              # Lossless VP8L includes alpha itself. VP8X is optional for a static file;
+              # keep a cleaned VP8X only if it was present.
+              if b'VP8X' in by_name:
+                  vp8x = bytearray(by_name[b'VP8X'][0])
+                  if vp8x:
+                      vp8x[0] &= ~0x02  # clear animation feature flag
+                  body += pack_chunk(b'VP8X', bytes(vp8x))
+              body += pack_chunk(b'VP8L', by_name[b'VP8L'][0])
+          elif b'VP8 ' in by_name:
+              if b'VP8X' in by_name:
+                  vp8x = bytearray(by_name[b'VP8X'][0])
+                  if vp8x:
+                      vp8x[0] &= ~0x02  # clear animation feature flag
+                  body += pack_chunk(b'VP8X', bytes(vp8x))
+              if b'ICCP' in by_name:
+                  body += pack_chunk(b'ICCP', by_name[b'ICCP'][0])
+              if b'ALPH' in by_name:
+                  body += pack_chunk(b'ALPH', by_name[b'ALPH'][0])
+              body += pack_chunk(b'VP8 ', by_name[b'VP8 '][0])
+          else:
+              raise SystemExit(f'No recoverable VP8/VP8L visual chunk. Found: {[n for n,_ in chunks]}')
+
+          recovered = b'RIFF' + struct.pack('<I', len(body)) + bytes(body)
+          recovered_path = Path('/tmp/floor-wall-recovered.webp')
+          recovered_path.write_bytes(recovered)
+          print(f'Recovered static WebP: {len(recovered)} bytes')
+
           dst = assets / 'floor-wall-logo-current.png'
-          with Image.open(src) as im:
+          with Image.open(recovered_path) as im:
+              im.seek(0)
               im.load()
               out = im.convert('RGBA' if im.mode in ('RGBA', 'LA') or 'transparency' in im.info else 'RGB')
               out.save(dst, format='PNG', optimize=True)
-          with Image.open(dst) as im:
-              im.load()
-              if im.width < 1 or im.height < 1 or getattr(im, 'n_frames', 1) != 1:
-                  raise SystemExit('Invalid current Floor & Wall logo')
-              print(f'Floor Wall current: {im.width}x{im.height}, {im.mode}')
+          with Image.open(dst) as check:
+              check.load()
+              if check.width < 1 or check.height < 1 or getattr(check, 'n_frames', 1) != 1:
+                  raise SystemExit('Recovered Floor & Wall PNG is invalid')
+              print(f'Floor Wall current recovered: {check.width}x{check.height}, {check.mode}')
 
+          # Current Road Click / Buildings artwork: normalize to static PNGs.
           for src_name, dst_name in {
               'road-click.webp': 'road-click-safe.png',
               'buildings.webp': 'buildings-safe.png',
@@ -112,8 +170,8 @@ jobs:
               original = text
               for old, new in replacements.items():
                   text = text.replace(old, new)
-              text = re.sub(r'v=202608(?:13|14|15)-[0-9A-Za-z-]+', 'v=20260815-0435', text)
-              text = text.replace('content="2026-08-14-official-logos-2015"', 'content="2026-08-15-current-brand-0435"')
+              text = re.sub(r'v=202608(?:13|14|15)-[0-9A-Za-z-]+', 'v=20260815-0445', text)
+              text = text.replace('content="2026-08-14-official-logos-2015"', 'content="2026-08-15-current-brand-0445"')
               if text != original:
                   page.write_text(text, encoding='utf-8')
                   print(f'Updated {page}')
@@ -139,7 +197,7 @@ jobs:
                       errors.append(f'{page}: legacy logo reference {asset}')
           if errors:
               raise SystemExit('\n'.join(errors))
-          print('Public pages use only current approved Structura/Floor Wall artwork.')
+          print('No public page references legacy Structura/Floor & Wall artwork.')
           PY
 
       - name: Commit current brand assets
