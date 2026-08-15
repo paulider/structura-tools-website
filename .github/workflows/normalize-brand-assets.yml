@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/normalize-brand-assets.yml'
-      - 'assets/structura-logo-official.webp'
+      - 'assets/structura-logo-final.png'
       - 'assets/road-click.webp'
       - 'assets/buildings.webp'
   workflow_dispatch:
@@ -36,6 +36,32 @@ jobs:
 
       - name: Install image decoder
         run: python -m pip install --disable-pip-version-check pillow
+
+      - name: Validate definitive Structura logo
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageStat
+
+          path = Path('assets/structura-logo-final.png')
+          if not path.is_file():
+              raise SystemExit('Missing definitive Structura logo: assets/structura-logo-final.png')
+          with Image.open(path) as im:
+              im.load()
+              rgba = im.convert('RGBA')
+              if rgba.width < 256 or rgba.height < 256:
+                  raise SystemExit(f'Definitive Structura logo unexpectedly small: {rgba.size}')
+              if getattr(im, 'n_frames', 1) != 1:
+                  raise SystemExit('Definitive Structura logo must be static')
+              if max(ImageStat.Stat(rgba.convert('RGB')).var) < 25:
+                  raise SystemExit('Definitive Structura logo appears visually blank')
+              alpha = rgba.getchannel('A')
+              lo, hi = alpha.getextrema()
+              if lo == 255:
+                  raise SystemExit('Definitive Structura logo must preserve transparent background')
+              print(f'Structura final: {rgba.width}x{rgba.height}, alpha={lo}-{hi}, bytes={path.stat().st_size}')
+          PY
 
       - name: Recover current Floor Wall logo from plugin package
         shell: bash
@@ -74,21 +100,25 @@ jobs:
           assets = Path('assets')
           for src_name, dst_name in {'road-click.webp':'road-click-safe.png','buildings.webp':'buildings-safe.png'}.items():
               with Image.open(assets / src_name) as im:
-                  im.seek(0); im.load()
+                  im.seek(0)
+                  im.load()
                   out = im.convert('RGBA' if im.mode in ('RGBA','LA') or 'transparency' in im.info else 'RGB')
                   out.save(assets / dst_name, format='PNG', optimize=True)
           PY
 
-      - name: Update public references without legacy fallbacks
+      - name: Normalize brand name and image references in every locale
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
           import re
 
-          # Structura: keep the CURRENT approved identity as the source of truth.
-          # Do not substitute any historical wireframe icon or the blank generated PNG.
-          structura_old = [
+          FINAL_LOGO = '/assets/structura-logo-final.png'
+          VERSION = 'v=20260815-brand-final'
+          BUILD = '2026-08-15-structura-tools-final-brand'
+
+          old_structura_assets = [
+              '/assets/structura-logo-official.webp',
               '/assets/structura-logo-current.png',
               '/assets/structura-logo-approved.jpg',
               '/assets/structura-logo-20260813.jpg',
@@ -97,53 +127,125 @@ jobs:
               '/assets/structura-logo-clean.png',
               '/assets/structura-logo.png',
           ]
-          floor_old = [
+          old_floor_assets = [
               '/assets/floor-wall-logo-official.webp',
               '/assets/floor-wall-logo-safe.png',
               '/assets/floor-wall-icon.jpg',
           ]
 
-          pages = [Path('index.html'),Path('road-click.html'),Path('floor-wall.html'),Path('buildings.html')]
+          # Historical translated variants seen in generated locale pages. These are
+          # intentionally normalized only when they represent the brand itself.
+          direct_brand_replacements = {
+              'HERRAMIENTAS STRUCTURA': 'STRUCTURA TOOLS',
+              'Herramientas Structura': 'Structura Tools',
+              'Herramientas de estructura': 'Structura Tools',
+              'ESTRUCTURA': 'STRUCTURA TOOLS',
+              'EINES STRUCTURA': 'STRUCTURA TOOLS',
+              'Eines Structura': 'Structura Tools',
+              'OUTILS STRUCTURA': 'STRUCTURA TOOLS',
+              'Outils Structura': 'Structura Tools',
+              'STRUMENTI STRUCTURA': 'STRUCTURA TOOLS',
+              'Strumenti Structura': 'Structura Tools',
+          }
+
+          pages = sorted(Path('.').glob('*.html'))
+          if not pages:
+              raise SystemExit('No HTML pages found')
+
           for page in pages:
               text = page.read_text(encoding='utf-8')
               original = text
-              for old in structura_old:
-                  text = text.replace(old, '/assets/structura-logo-official.webp')
-              for old in floor_old:
+
+              for old in old_structura_assets:
+                  text = text.replace(old, FINAL_LOGO)
+              for old in old_floor_assets:
                   text = text.replace(old, '/assets/floor-wall-logo-current.png')
               text = text.replace('/assets/road-click.webp','/assets/road-click-safe.png')
               text = text.replace('/assets/buildings.webp','/assets/buildings-safe.png')
               text = text.replace('/assets/pau-cols-founder.webp','/assets/pau-cols-final.jpg')
-              text = re.sub(r'v=202608(?:13|14|15)-[0-9A-Za-z-]+','v=20260815-1310',text)
-              text = re.sub(r'content="2026-08-(?:14|15)-[^"]+"','content="2026-08-15-current-brand-1310"',text)
+
+              # Brand in the global header: text is immutable in every language.
+              text = re.sub(
+                  r'(<a\b[^>]*class=["\'][^"\']*\bbrand\b[^"\']*["\'][^>]*>.*?<span[^>]*>).*?(</span>)',
+                  r'\1STRUCTURA TOOLS\2',
+                  text,
+                  count=1,
+                  flags=re.IGNORECASE | re.DOTALL,
+              )
+
+              # Brand in landing hero: keep the localized tagline in its nested span,
+              # but never translate the brand name itself.
+              text = re.sub(
+                  r'(<h1\b[^>]*class=["\'][^"\']*\blanding-title\b[^"\']*["\'][^>]*>).*?(<span\b)',
+                  r'\1STRUCTURA TOOLS\2',
+                  text,
+                  count=1,
+                  flags=re.IGNORECASE | re.DOTALL,
+              )
+
+              # Structura ecosystem card is a brand label, not translatable content.
+              text = re.sub(
+                  r'(<[^>]+class=["\'][^"\']*\bbrand-tile\b[^"\']*["\'][^>]*>.*?<strong[^>]*>).*?(</strong>)',
+                  r'\1Structura Tools\2',
+                  text,
+                  count=1,
+                  flags=re.IGNORECASE | re.DOTALL,
+              )
+
+              for old, new in direct_brand_replacements.items():
+                  text = text.replace(old, new)
+
+              # Normalize brand spelling inside title/meta while leaving descriptors translated.
+              text = re.sub(r'\bStructura\s+Tools\b', 'Structura Tools', text, flags=re.IGNORECASE)
+
+              text = re.sub(r'v=202608(?:13|14|15)-[0-9A-Za-z-]+', VERSION, text)
+              text = re.sub(r'content="2026-08-(?:14|15)-[^"]+"', f'content="{BUILD}"', text)
+
               if text != original:
-                  page.write_text(text,encoding='utf-8')
+                  page.write_text(text, encoding='utf-8')
                   print(f'Updated {page}')
+
+          print(f'Processed {len(pages)} HTML pages.')
           PY
 
-      - name: Block old Structura and Floor Wall artwork
+      - name: Enforce immutable Structura Tools brand contract
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
-          forbidden = [
+          import re
+
+          FINAL_LOGO = '/assets/structura-logo-final.png'
+          forbidden_assets = [
+              '/assets/structura-logo-official.webp','/assets/structura-logo-current.png',
               '/assets/structura-logo.png','/assets/structura-logo-clean.png','/assets/structura-logo-safe.png',
-              '/assets/structura-logo-20260813.png','/assets/structura-logo-20260813.jpg','/assets/structura-logo-approved.jpg',
-              '/assets/structura-logo-current.png','/assets/floor-wall-icon.jpg','/assets/floor-wall-logo-safe.png',
-              '/assets/floor-wall-logo-official.webp'
+              '/assets/structura-logo-20260813.png','/assets/structura-logo-20260813.jpg',
+              '/assets/structura-logo-approved.jpg','/assets/floor-wall-icon.jpg',
+              '/assets/floor-wall-logo-safe.png','/assets/floor-wall-logo-official.webp',
+          ]
+          forbidden_brand_text = [
+              'HERRAMIENTAS STRUCTURA','ESTRUCTURA','EINES STRUCTURA',
+              'OUTILS STRUCTURA','STRUMENTI STRUCTURA',
           ]
           errors=[]
-          for page in map(Path,['index.html','road-click.html','floor-wall.html','buildings.html']):
+          for page in sorted(Path('.').glob('*.html')):
               text=page.read_text(encoding='utf-8')
-              for asset in forbidden:
+              for asset in forbidden_assets:
                   if asset in text:
-                      errors.append(f'{page}: forbidden legacy/broken logo reference {asset}')
+                      errors.append(f'{page}: forbidden legacy/broken asset {asset}')
+              for phrase in forbidden_brand_text:
+                  if phrase in text:
+                      errors.append(f'{page}: translated brand name remains: {phrase}')
+              if 'landing-title' in text and 'STRUCTURA TOOLS' not in text:
+                  errors.append(f'{page}: landing brand is not STRUCTURA TOOLS')
+              if 'class="brand"' in text and FINAL_LOGO not in text:
+                  errors.append(f'{page}: header is not using definitive Structura logo')
           if errors:
               raise SystemExit('\n'.join(errors))
-          print('No public page references old Structura or old Floor & Wall artwork.')
+          print('Brand contract verified: Structura Tools is immutable across locales.')
           PY
 
-      - name: Commit normalized current assets
+      - name: Commit normalized brand system
         shell: bash
         run: |
           if git diff --quiet && [ -z "$(git status --porcelain assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png 2>/dev/null)" ]; then
@@ -152,6 +254,6 @@ jobs:
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png index.html road-click.html floor-wall.html buildings.html
-          git commit -m 'Restore current Structura identity and Floor Wall logo'
+          git add assets/floor-wall-logo-current.png assets/road-click-safe.png assets/buildings-safe.png '*.html'
+          git commit -m 'Lock Structura Tools brand across all locales'
           git push
