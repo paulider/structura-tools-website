@@ -10,6 +10,7 @@ on:
       - 'assets/floor-wall-logo-current.png'
       - 'assets/road-click.webp'
       - 'assets/buildings.webp'
+      - 'assets/pau-cols-v4.jpg'
       - '*.html'
   workflow_dispatch:
 
@@ -32,7 +33,7 @@ jobs:
       - name: Install image decoder
         run: python -m pip install --disable-pip-version-check pillow
 
-      - name: Validate user-approved canonical logos
+      - name: Validate canonical user-approved assets
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -59,6 +60,19 @@ jobs:
                   if lo == 255:
                       raise SystemExit(f'{label} logo must preserve transparency')
                   print(f'{label}: {rgba.size}, alpha={lo}-{hi}, bytes={path.stat().st_size}')
+
+          portrait = Path('assets/pau-cols-v4.jpg')
+          if not portrait.is_file():
+              raise SystemExit(f'Missing verified mobile-safe founder portrait: {portrait}')
+          with Image.open(portrait) as im:
+              im.load()
+              if im.width < 64 or im.height < 64:
+                  raise SystemExit(f'Founder portrait too small: {im.size}')
+              if getattr(im, 'n_frames', 1) != 1:
+                  raise SystemExit('Founder portrait must be static')
+              if max(ImageStat.Stat(im.convert('RGB')).var) < 25:
+                  raise SystemExit('Founder portrait appears blank')
+              print(f'Pau portrait: {im.size}, format={im.format}, bytes={portrait.stat().st_size}')
           PY
 
       - name: Normalize Road Click and Buildings only
@@ -78,10 +92,10 @@ jobs:
                   out.save(a / dst, 'PNG', optimize=True)
           PY
 
-      - name: Normalize references and verify immutable brand contract
+      - name: Normalize references and verify immutable asset contract
         run: python scripts/normalize_brand.py
 
-      - name: Reject legacy logo references
+      - name: Reject legacy logo and portrait references
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -98,19 +112,26 @@ jobs:
               'floor-wall-logo-official.webp',
               'floor-wall-logo-safe.png',
               'floor-wall-icon.jpg',
+              'pau-cols-founder.webp',
+              'pau-cols-final.jpg',
+              'pau-cols-clean.jpg',
+              'pau-cols-mobile.jpg',
+              'pau-cols-stable.jpg',
+              'pau-cols-v2.jpg',
+              'pau-cols.jpg',
           }
           errors = []
           for page in Path('.').glob('*.html'):
               text = page.read_text(encoding='utf-8')
               for name in forbidden:
                   if name in text:
-                      errors.append(f'{page}: legacy logo reference: {name}')
+                      errors.append(f'{page}: legacy/broken asset reference: {name}')
           if errors:
               raise SystemExit('\n'.join(errors))
-          print('Public pages reference only canonical Structura and Floor & Wall logos.')
+          print('Public pages reference only canonical logos and verified Pau portrait.')
           PY
 
-      - name: Commit non-brand normalization changes
+      - name: Commit non-canonical normalization changes
         run: |
           if git diff --quiet; then
             echo 'No changes required.'
@@ -120,5 +141,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add assets/road-click-safe.png assets/buildings-safe.png '*.html'
           git diff --cached --quiet && exit 0
-          git commit -m 'Normalize non-canonical web assets and brand references'
+          git commit -m 'Normalize public assets and canonical references'
           git push
