@@ -11,6 +11,12 @@ on:
       - 'assets/road-click.webp'
       - 'assets/buildings.webp'
       - 'assets/pau-cols-v4.jpg'
+      - 'assets/pau-cols-final.jpg'
+      - 'assets/pau-cols-clean.jpg'
+      - 'assets/pau-cols-mobile.jpg'
+      - 'assets/pau-cols-stable.jpg'
+      - 'assets/pau-cols-v2.jpg'
+      - 'assets/pau-cols.jpg'
       - '*.html'
   workflow_dispatch:
 
@@ -33,7 +39,7 @@ jobs:
       - name: Install image decoder
         run: python -m pip install --disable-pip-version-check pillow
 
-      - name: Validate canonical user-approved assets
+      - name: Validate canonical user-approved logos
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -60,19 +66,85 @@ jobs:
                   if lo == 255:
                       raise SystemExit(f'{label} logo must preserve transparency')
                   print(f'{label}: {rgba.size}, alpha={lo}-{hi}, bytes={path.stat().st_size}')
+          PY
 
-          portrait = Path('assets/pau-cols-v4.jpg')
-          if not portrait.is_file():
-              raise SystemExit(f'Missing verified mobile-safe founder portrait: {portrait}')
-          with Image.open(portrait) as im:
-              im.load()
-              if im.width < 64 or im.height < 64:
-                  raise SystemExit(f'Founder portrait too small: {im.size}')
-              if getattr(im, 'n_frames', 1) != 1:
-                  raise SystemExit('Founder portrait must be static')
-              if max(ImageStat.Stat(im.convert('RGB')).var) < 25:
-                  raise SystemExit('Founder portrait appears blank')
-              print(f'Pau portrait: {im.size}, format={im.format}, bytes={portrait.stat().st_size}')
+      - name: Build strict baseline founder portrait
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageFile, ImageStat
+
+          ImageFile.LOAD_TRUNCATED_IMAGES = False
+          assets = Path('assets')
+          candidates = [
+              'pau-cols-v4.jpg',
+              'pau-cols-final.jpg',
+              'pau-cols-clean.jpg',
+              'pau-cols-mobile.jpg',
+              'pau-cols-stable.jpg',
+              'pau-cols-v2.jpg',
+              'pau-cols.jpg',
+          ]
+
+          valid = []
+          for name in candidates:
+              path = assets / name
+              if not path.is_file():
+                  print(f'SKIP {name}: missing')
+                  continue
+              try:
+                  with Image.open(path) as im:
+                      im.load()
+                      if getattr(im, 'n_frames', 1) != 1:
+                          raise ValueError('not static')
+                      rgb = im.convert('RGB')
+                      w, h = rgb.size
+                      if w < 128 or h < 128:
+                          raise ValueError(f'too small {rgb.size}')
+
+                      # Detect the exact failure seen in browsers: a valid-looking
+                      # strip followed by large flat/grey regions. Every horizontal
+                      # band must contain real image variation.
+                      band_scores = []
+                      for i in range(5):
+                          y0 = (h * i) // 5
+                          y1 = (h * (i + 1)) // 5
+                          band = rgb.crop((0, y0, w, y1))
+                          band_scores.append(max(ImageStat.Stat(band).var))
+                      min_band = min(band_scores)
+                      overall = max(ImageStat.Stat(rgb).var)
+                      print(f'CANDIDATE {name}: size={rgb.size} overall={overall:.2f} bands={[round(v, 2) for v in band_scores]} min_band={min_band:.2f}')
+                      if overall < 25 or min_band < 8:
+                          raise ValueError('visually flat/corrupt image bands')
+                      valid.append((min_band, overall, name, rgb.copy()))
+              except Exception as exc:
+                  print(f'REJECT {name}: {exc}')
+
+          if not valid:
+              raise SystemExit('No existing Pau portrait passes strict decode and full-height visual integrity checks.')
+
+          valid.sort(key=lambda x: (x[0], x[1]), reverse=True)
+          min_band, overall, source_name, rgb = valid[0]
+          dst = assets / 'pau-cols-production.jpg'
+
+          # Fresh baseline JPEG: no progressive scan, no inherited broken stream.
+          rgb.save(dst, 'JPEG', quality=92, optimize=True, progressive=False, subsampling=0)
+
+          ImageFile.LOAD_TRUNCATED_IMAGES = False
+          with Image.open(dst) as check:
+              check.load()
+              if check.format != 'JPEG' or getattr(check, 'n_frames', 1) != 1:
+                  raise SystemExit('Generated founder portrait is not a static JPEG')
+              out = check.convert('RGB')
+              w, h = out.size
+              band_scores = []
+              for i in range(5):
+                  y0 = (h * i) // 5
+                  y1 = (h * (i + 1)) // 5
+                  band_scores.append(max(ImageStat.Stat(out.crop((0, y0, w, y1))).var))
+              if min(band_scores) < 8:
+                  raise SystemExit(f'Generated portrait failed band integrity check: {band_scores}')
+              print(f'SELECTED {source_name} -> {dst}; strict baseline verified; size={out.size}; bands={[round(v, 2) for v in band_scores]}; bytes={dst.stat().st_size}')
           PY
 
       - name: Normalize Road Click and Buildings only
@@ -128,18 +200,18 @@ jobs:
                       errors.append(f'{page}: legacy/broken asset reference: {name}')
           if errors:
               raise SystemExit('\n'.join(errors))
-          print('Public pages reference only canonical logos and verified Pau portrait.')
+          print('Public pages reference only canonical logos and approved founder portrait reference.')
           PY
 
-      - name: Commit non-canonical normalization changes
+      - name: Commit normalized production assets
         run: |
-          if git diff --quiet; then
+          if git diff --quiet && [ -z "$(git status --porcelain assets/pau-cols-production.jpg 2>/dev/null)" ]; then
             echo 'No changes required.'
             exit 0
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add assets/road-click-safe.png assets/buildings-safe.png '*.html'
+          git add assets/pau-cols-production.jpg assets/road-click-safe.png assets/buildings-safe.png '*.html'
           git diff --cached --quiet && exit 0
-          git commit -m 'Normalize public assets and canonical references'
+          git commit -m 'Create strict baseline founder portrait asset'
           git push
