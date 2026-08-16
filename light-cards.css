@@ -1,0 +1,65 @@
+/* Structura UI policy: cards may use white or light gradients, never dark surfaces. */
+
+/* Landing cards */
+.logo-tile,
+.product-card-v2,
+.principle,
+.studio-v2 {
+  color: var(--landing-ink, #0b171c);
+}
+
+/* Keep approved light gradients such as the flagship product card. */
+.product-card-v2.flagship {
+  background: linear-gradient(145deg,#fff 0%,#eef9fb 100%);
+  border-color: #cfe9ed;
+}
+
+/* Final CTA is a card, so keep it light as well. */
+.final-cta-card {
+  background: linear-gradient(135deg,#fff 0%,#eef9fb 100%);
+  color: var(--landing-ink, #0b171c);
+  border: 1px solid var(--landing-line, #dfe7ea);
+  box-shadow: 0 18px 50px rgba(5,53,65,.055);
+}
+.final-cta-card:after {
+  background: radial-gradient(circle,rgba(91,229,239,.16),transparent 65%);
+}
+.final-cta-card p {
+  color: var(--landing-muted, #64747b);
+}
+.final-cta-card .btn {
+  background: var(--landing-navy, #062f3d);
+  border-color: var(--landing-navy, #062f3d);
+  color: #fff;
+}
+
+/* Product-page cards */
+.offer,
+.final-note,
+.core {
+  background: linear-gradient(145deg,#fff 0%,#f3fafb 100%);
+  color: var(--ink, #10181c);
+  border: 1px solid var(--line, #dfe8eb);
+  box-shadow: 0 14px 36px rgba(5,53,65,.045);
+}
+.offer .price strong {
+  color: #007f95;
+}
+.offer p,
+.final-note p,
+.core span {
+  color: var(--muted, #66747b);
+}
+
+/* Defensive rule if ecosystem cards are ever reintroduced later. */
+.ecosystem-node {
+  background: #fff;
+  color: var(--landing-ink, #0b171c);
+  border-color: var(--landing-line, #dfe7ea);
+}
+.ecosystem-node h3 {
+  color: var(--landing-ink, #0b171c);
+}
+.ecosystem-node p {
+  color: var(--landing-muted, #64747b);
+}
