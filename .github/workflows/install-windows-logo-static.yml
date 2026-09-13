@@ -1,0 +1,49 @@
+name: Install Windows static logo
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/install-windows-logo-static.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build static logo from verified source chunks
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat assets/windows-logo-source-v2/00.txt \
+              assets/windows-logo-source-v2/01.txt \
+              assets/windows-logo-source-v2/02.txt \
+              assets/windows-logo-source-v2/03.txt \
+              assets/windows-logo-source-v2/04.txt \
+              assets/windows-logo-source-v2/05.txt \
+            | tr -d '\n\r ' \
+            | base64 -d > assets/structura-windows-logo-live.webp
+          file assets/structura-windows-logo-live.webp
+          bytes=$(wc -c < assets/structura-windows-logo-live.webp)
+          echo "bytes=$bytes"
+          test "$bytes" -gt 40000
+          file assets/structura-windows-logo-live.webp | grep -qi 'Web/P image'
+
+      - name: Commit static logo
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/structura-windows-logo-live.webp
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'Install working Structura Windows static logo'
+          git push
