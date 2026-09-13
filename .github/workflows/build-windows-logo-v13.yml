@@ -1,0 +1,52 @@
+name: Build Windows logo v13
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'assets/windows-logo-v13-source/**'
+      - '.github/workflows/build-windows-logo-v13.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Rebuild and validate static logo
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat \
+            assets/windows-logo-v13-source/00.txt \
+            assets/windows-logo-v13-source/01.txt \
+            assets/windows-logo-v13-source/02_03.txt \
+            assets/windows-logo-v13-source/04_05.txt \
+            assets/windows-logo-v13-source/06_07.txt \
+            assets/windows-logo-v13-source/08_09.txt \
+            | tr -d '\n\r ' \
+            | base64 -d > assets/structura-windows-logo-v13.webp
+
+          file assets/structura-windows-logo-v13.webp
+          bytes=$(wc -c < assets/structura-windows-logo-v13.webp)
+          echo "bytes=$bytes"
+          test "$bytes" -gt 60000
+          file assets/structura-windows-logo-v13.webp | grep -qi 'Web/P image'
+
+      - name: Commit static logo
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/structura-windows-logo-v13.webp
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'Build valid Structura Windows v13 logo'
+          git push
