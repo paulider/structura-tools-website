@@ -26,5 +26,5 @@
       '<div class="footer-bottom"><span>© 2026 Structura Tools</span><span>Barcelona · Firenze</span></div>'+
     '</div></footer>';
   }
-  if(!document.querySelector('script[src="/site-metrics.js"]')){const m=document.createElement("script");m.src="/site-metrics.js";m.defer=true;document.head.appendChild(m);}
+  if(!document.querySelector('script[src="/ecosystem-i18n.js"]')){const i=document.createElement("script");i.src="/ecosystem-i18n.js";i.defer=true;document.head.appendChild(i);} if(!document.querySelector('script[src="/site-metrics.js"]')){const m=document.createElement("script");m.src="/site-metrics.js";m.defer=true;document.head.appendChild(m);}
 })();
