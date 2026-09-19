@@ -30,11 +30,5 @@
     }catch(e){}
   });
 
-  // Vercel Web Analytics for static HTML.
-  window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments);};
-  if(!document.querySelector('script[data-structura-analytics]')){
-    const s=document.createElement('script');
-    s.defer=true;s.src='/_vercel/insights/script.js';s.dataset.structuraAnalytics='1';
-    document.head.appendChild(s);
-  }
+  // Web Analytics is intentionally not loaded here until it is enabled in Vercel.
 })();
