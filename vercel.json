@@ -1,4 +1,9 @@
 {
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "redirects": [
+    { "source": "/roads", "destination": "/road-click", "permanent": true }
+  ],
   "headers": [
     {
       "source": "/",
