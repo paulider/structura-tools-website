@@ -21,9 +21,10 @@
         '<div><a class="footer-brand" href="/"><img src="/assets/structura-logo-final.png" alt=""><span>STRUCTURA TOOLS</span></a></div>'+
         '<div class="footer-col"><h4>Products</h4><a href="/floor-wall">Floor &amp; Wall</a><a href="/windows">Windows</a><a href="/doors">Doors</a><a href="/kitchen">Kitchen</a><a href="/road-click">Road Click</a><a href="/buildings">Buildings</a></div>'+
         '<div class="footer-col"><h4>Resources</h4><a href="/learn">Getting Started</a><a href="/tutorials">Tutorials</a><a href="/docs">Documentation</a><a href="/changelog">Changelog</a><a href="/support">Support</a></div>'+
-        '<div class="footer-col"><h4>Structura</h4><a href="/#about">About</a><a href="https://www.youtube.com/@StructuraTools" target="_blank" rel="noopener">YouTube</a><a href="https://structuratools.gumroad.com/" target="_blank" rel="noopener">Plugin Store</a></div>'+
+        '<div class="footer-col"><h4>Structura</h4><a href="/#about">About</a><a href="/tutorials">Tutorials</a><a href="https://structuratools.gumroad.com/" target="_blank" rel="noopener">Plugin Store</a></div>'+
       '</div>'+
       '<div class="footer-bottom"><span>© 2026 Structura Tools</span><span>Barcelona · Firenze</span></div>'+
     '</div></footer>';
   }
+  if(!document.querySelector('script[src="/site-metrics.js"]')){const m=document.createElement("script");m.src="/site-metrics.js";m.defer=true;document.head.appendChild(m);}
 })();
