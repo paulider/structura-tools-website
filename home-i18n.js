@@ -1,0 +1,52 @@
+(()=>{
+const lang=(new URLSearchParams(location.search).get('lang')||'en').toLowerCase();
+if(lang==='en')return;
+const D={
+es:{
+'Structura Tools · SketchUp + Blender':'Structura Tools · SketchUp + Blender',
+'Procedural tools':'Herramientas procedurales','for 3D production.':'para producción 3D.',
+'Powerful plugins and add-ons for architecture and asset production — built around repeatable workflows, editable systems and production-ready output.':'Plugins y add-ons potentes para arquitectura y producción de assets, creados alrededor de workflows repetibles, sistemas editables y resultados listos para producción.',
+'SketchUp plugins':'Plugins de SketchUp','Blender add-ons':'Add-ons de Blender',
+'Parametric workflows':'Workflows paramétricos','Editable systems':'Sistemas editables','Production ready':'Listo para producción',
+'Architecture production':'Producción arquitectónica','Model faster. Build smarter.':'Modela más rápido. Construye mejor.',
+'Procedural tools for architectural modelling, parametric systems and production-ready geometry inside SketchUp.':'Herramientas procedurales para modelado arquitectónico, sistemas paramétricos y geometría lista para producción dentro de SketchUp.',
+'Asset production':'Producción de assets','Generate. Customize. Produce.':'Genera. Personaliza. Produce.',
+'Procedural asset generators for product design, interiors and environment production in Blender.':'Generadores procedurales de assets para diseño de producto, interiores y producción de entornos en Blender.',
+'Explore SketchUp plugins':'Explorar plugins de SketchUp','Explore Blender roadmap':'Explorar roadmap de Blender',
+'One ecosystem':'Un ecosistema','Different software.':'Software diferente.','Same production logic.':'La misma lógica de producción.',
+'Procedural':'Procedural','Editable':'Editable','Production ready':'Listo para producción','Consistent':'Coherente',
+'Start free · SketchUp':'Empieza gratis · SketchUp','Download free':'Descargar gratis','Current commercial release':'Lanzamiento comercial actual','Explore Windows':'Explorar Windows',
+'Blender roadmap':'Roadmap Blender','From architecture tools':'De herramientas de arquitectura','to procedural asset systems.':'a sistemas procedurales de assets.',
+'Build systems.':'Construye sistemas.','Not repetitive geometry.':'No geometría repetitiva.',
+'Start with Floor & Wall':'Empezar con Floor & Wall','See Blender add-ons':'Ver add-ons de Blender',
+'In development':'En desarrollo','Planned':'Planificado','Research':'Investigación','Preview':'Vista previa','Free':'Gratis','Early Access':'Early Access'
+},
+ca:{
+'Procedural tools':'Eines procedurals','for 3D production.':'per a producció 3D.','SketchUp plugins':'Plugins de SketchUp','Blender add-ons':'Add-ons de Blender',
+'Parametric workflows':'Fluxos paramètrics','Editable systems':'Sistemes editables','Production ready':'Preparat per a producció','Architecture production':'Producció arquitectònica','Asset production':'Producció d’assets',
+'Model faster. Build smarter.':'Modela més ràpid. Construeix millor.','Generate. Customize. Produce.':'Genera. Personalitza. Produeix.',
+'Explore SketchUp plugins':'Explora plugins de SketchUp','Explore Blender roadmap':'Explora el roadmap de Blender','One ecosystem':'Un ecosistema','Different software.':'Programari diferent.','Same production logic.':'La mateixa lògica de producció.',
+'Procedural':'Procedural','Editable':'Editable','Production ready':'Preparat per a producció','Consistent':'Coherent','Start free · SketchUp':'Comença gratis · SketchUp','Download free':'Descarrega gratis','Current commercial release':'Llançament comercial actual','Explore Windows':'Explora Windows','Blender roadmap':'Roadmap Blender','Build systems.':'Construeix sistemes.','Not repetitive geometry.':'No geometria repetitiva.','Start with Floor & Wall':'Comença amb Floor & Wall','See Blender add-ons':'Veure add-ons de Blender','In development':'En desenvolupament','Planned':'Planificat','Research':'Recerca','Preview':'Vista prèvia','Free':'Gratis','Early Access':'Accés anticipat'
+},
+it:{
+'Procedural tools':'Strumenti procedurali','for 3D production.':'per la produzione 3D.','SketchUp plugins':'Plugin SketchUp','Blender add-ons':'Add-on Blender','Parametric workflows':'Workflow parametrici','Editable systems':'Sistemi modificabili','Production ready':'Pronto per la produzione','Architecture production':'Produzione architettonica','Asset production':'Produzione di asset','Model faster. Build smarter.':'Modella più velocemente. Costruisci meglio.','Generate. Customize. Produce.':'Genera. Personalizza. Produci.','Explore SketchUp plugins':'Esplora i plugin SketchUp','Explore Blender roadmap':'Esplora la roadmap Blender','One ecosystem':'Un ecosistema','Different software.':'Software diversi.','Same production logic.':'La stessa logica di produzione.','Procedural':'Procedurale','Editable':'Modificabile','Production ready':'Pronto per la produzione','Consistent':'Coerente','Start free · SketchUp':'Inizia gratis · SketchUp','Download free':'Scarica gratis','Current commercial release':'Release commerciale attuale','Explore Windows':'Esplora Windows','Blender roadmap':'Roadmap Blender','Build systems.':'Costruisci sistemi.','Not repetitive geometry.':'Non geometria ripetitiva.','Start with Floor & Wall':'Inizia con Floor & Wall','See Blender add-ons':'Vedi gli add-on Blender','In development':'In sviluppo','Planned':'Pianificato','Research':'Ricerca','Preview':'Anteprima','Free':'Gratis','Early Access':'Accesso anticipato'
+},
+fr:{
+'Procedural tools':'Outils procéduraux','for 3D production.':'pour la production 3D.','SketchUp plugins':'Plugins SketchUp','Blender add-ons':'Add-ons Blender','Parametric workflows':'Workflows paramétriques','Editable systems':'Systèmes modifiables','Production ready':'Prêt pour la production','Architecture production':'Production architecturale','Asset production':'Production d’assets','Model faster. Build smarter.':'Modélisez plus vite. Construisez mieux.','Generate. Customize. Produce.':'Générez. Personnalisez. Produisez.','Explore SketchUp plugins':'Explorer les plugins SketchUp','Explore Blender roadmap':'Explorer la roadmap Blender','One ecosystem':'Un écosystème','Different software.':'Logiciels différents.','Same production logic.':'La même logique de production.','Procedural':'Procédural','Editable':'Modifiable','Production ready':'Prêt pour la production','Consistent':'Cohérent','Start free · SketchUp':'Commencer gratuitement · SketchUp','Download free':'Télécharger gratuitement','Current commercial release':'Version commerciale actuelle','Explore Windows':'Découvrir Windows','Blender roadmap':'Roadmap Blender','Build systems.':'Construisez des systèmes.','Not repetitive geometry.':'Pas de géométrie répétitive.','Start with Floor & Wall':'Commencer avec Floor & Wall','See Blender add-ons':'Voir les add-ons Blender','In development':'En développement','Planned':'Planifié','Research':'Recherche','Preview':'Aperçu','Free':'Gratuit','Early Access':'Accès anticipé'
+},
+de:{
+'Procedural tools':'Prozedurale Werkzeuge','for 3D production.':'für die 3D-Produktion.','SketchUp plugins':'SketchUp Plugins','Blender add-ons':'Blender Add-ons','Parametric workflows':'Parametrische Workflows','Editable systems':'Editierbare Systeme','Production ready':'Produktionsbereit','Architecture production':'Architekturproduktion','Asset production':'Asset-Produktion','Model faster. Build smarter.':'Schneller modellieren. Intelligenter bauen.','Generate. Customize. Produce.':'Generieren. Anpassen. Produzieren.','Explore SketchUp plugins':'SketchUp Plugins entdecken','Explore Blender roadmap':'Blender Roadmap entdecken','One ecosystem':'Ein Ökosystem','Different software.':'Unterschiedliche Software.','Same production logic.':'Dieselbe Produktionslogik.','Procedural':'Prozedural','Editable':'Editierbar','Production ready':'Produktionsbereit','Consistent':'Konsistent','Start free · SketchUp':'Kostenlos starten · SketchUp','Download free':'Kostenlos herunterladen','Current commercial release':'Aktuelle kommerzielle Version','Explore Windows':'Windows entdecken','Blender roadmap':'Blender Roadmap','Build systems.':'Systeme bauen.','Not repetitive geometry.':'Keine repetitive Geometrie.','Start with Floor & Wall':'Mit Floor & Wall starten','See Blender add-ons':'Blender Add-ons ansehen','In development':'In Entwicklung','Planned':'Geplant','Research':'Forschung','Preview':'Vorschau','Free':'Kostenlos','Early Access':'Early Access'
+},
+pt:{
+'Procedural tools':'Ferramentas procedurais','for 3D production.':'para produção 3D.','SketchUp plugins':'Plugins SketchUp','Blender add-ons':'Add-ons Blender','Parametric workflows':'Workflows paramétricos','Editable systems':'Sistemas editáveis','Production ready':'Pronto para produção','Architecture production':'Produção arquitetónica','Asset production':'Produção de assets','Model faster. Build smarter.':'Modele mais rápido. Construa melhor.','Generate. Customize. Produce.':'Gere. Personalize. Produza.','Explore SketchUp plugins':'Explorar plugins SketchUp','Explore Blender roadmap':'Explorar roadmap Blender','One ecosystem':'Um ecossistema','Different software.':'Software diferente.','Same production logic.':'A mesma lógica de produção.','Procedural':'Procedural','Editable':'Editável','Production ready':'Pronto para produção','Consistent':'Consistente','Start free · SketchUp':'Começar grátis · SketchUp','Download free':'Descarregar grátis','Current commercial release':'Lançamento comercial atual','Explore Windows':'Explorar Windows','Blender roadmap':'Roadmap Blender','Build systems.':'Construa sistemas.','Not repetitive geometry.':'Não geometria repetitiva.','Start with Floor & Wall':'Começar com Floor & Wall','See Blender add-ons':'Ver add-ons Blender','In development':'Em desenvolvimento','Planned':'Planeado','Research':'Investigação','Preview':'Pré-visualização','Free':'Grátis','Early Access':'Acesso antecipado'
+}
+};
+const dict=D[lang]||{};
+function translate(){
+  document.documentElement.lang=lang;
+  const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
+  const nodes=[];while(w.nextNode())nodes.push(w.currentNode);
+  nodes.forEach(n=>{const raw=n.nodeValue,t=raw.trim();if(t&&dict[t])n.nodeValue=raw.replace(t,dict[t]);});
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(translate,20),{once:true});else setTimeout(translate,20);
+})();
