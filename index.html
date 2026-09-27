@@ -3,204 +3,224 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Structura Tools — Procedural tools for SketchUp</title>
-<meta name="description" content="Structura Tools is a suite of procedural SketchUp tools for architectural production. Start free with Floor & Wall, then expand with Windows and the rest of the Structura ecosystem.">
+<title>Structura Tools — Procedural tools for 3D production</title>
+<meta name="description" content="Structura Tools builds procedural plugins for SketchUp and production-focused add-ons for Blender. Parametric workflows, editable systems and production-ready output.">
 <link rel="icon" href="/assets/structura-logo-final.png">
 <link rel="stylesheet" href="/ecosystem.css">
+<link rel="stylesheet" href="/home-production.css">
 </head>
 <body data-page="home">
 <div data-site-header></div>
+
 <main>
-<section class="eco-hero">
-  <div class="wrap eco-hero-inner">
+<section class="prod-hero">
+  <div class="prod-grid-overlay" aria-hidden="true"></div>
+  <div class="wrap prod-hero-grid">
+    <div class="prod-copy">
+      <div class="kicker">Structura Tools · SketchUp + Blender</div>
+      <h1>Procedural tools<br><span>for 3D production.</span></h1>
+      <p>Powerful plugins and add-ons for architecture and asset production — built around repeatable workflows, editable systems and production-ready output.</p>
+      <div class="btn-row prod-actions">
+        <a class="prod-btn blue" href="#sketchup">SketchUp plugins <span>→</span></a>
+        <a class="prod-btn orange" href="#blender">Blender add-ons <span>→</span></a>
+      </div>
+      <div class="prod-proof" aria-label="Structura product principles">
+        <div><span class="proof-icon">◇</span><strong>Parametric workflows</strong></div>
+        <div><span class="proof-icon">▱</span><strong>Editable systems</strong></div>
+        <div><span class="proof-icon">⌁</span><strong>Production ready</strong></div>
+      </div>
+    </div>
+
+    <div class="atom-stage" aria-label="Structura ecosystem connecting SketchUp and Blender">
+      <div class="atom-grid" aria-hidden="true"></div>
+      <div class="orbit orbit-a" aria-hidden="true"></div>
+      <div class="orbit orbit-b" aria-hidden="true"></div>
+      <div class="orbit orbit-c" aria-hidden="true"></div>
+
+      <div class="atom-core">
+        <span class="core-halo" aria-hidden="true"></span>
+        <img src="/assets/structura-logo-final.png" alt="Structura Tools">
+      </div>
+
+      <div class="platform-node node-su">
+        <img src="/assets/sketchup-mark.svg" alt="SketchUp">
+        <span>SketchUp</span>
+      </div>
+      <div class="platform-node node-bl">
+        <img src="/assets/blender-mark.svg" alt="Blender">
+        <span>Blender</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="platforms-section" aria-label="Structura product families">
+  <div class="wrap platform-split">
+    <article class="platform-panel sketchup-panel" id="sketchup">
+      <div class="panel-glow" aria-hidden="true"></div>
+      <header class="platform-head">
+        <div class="platform-title-lockup">
+          <span class="platform-mark su-mark"><img src="/assets/sketchup-mark.svg" alt=""></span>
+          <div>
+            <div class="panel-kicker">Architecture production</div>
+            <h2>SketchUp<br>Plugins</h2>
+          </div>
+        </div>
+        <p class="platform-tagline">Model faster. Build smarter.</p>
+        <p>Procedural tools for architectural modelling, parametric systems and production-ready geometry inside SketchUp.</p>
+      </header>
+
+      <div class="tool-card-grid">
+        <a class="tool-card" href="/floor-wall">
+          <img src="/assets/floor-wall-logo-current.png" alt="Floor & Wall">
+          <div><strong>Floor &amp; Wall</strong><span>Parametric walls and floors</span></div>
+          <em>Free</em>
+        </a>
+        <a class="tool-card" href="/windows">
+          <img src="/assets/structura-windows-logo-official.png" alt="Windows">
+          <div><strong>Windows</strong><span>Smart, editable windows</span></div>
+          <em>Early Access</em>
+        </a>
+        <a class="tool-card" href="/buildings">
+          <img src="/assets/buildings-safe.png" alt="Buildings">
+          <div><strong>Buildings</strong><span>Procedural building systems</span></div>
+          <em>In development</em>
+        </a>
+        <a class="tool-card" href="/road-click">
+          <img src="/assets/road-click-safe.png" alt="Road Click">
+          <div><strong>Road Click</strong><span>Roads and infrastructure</span></div>
+          <em>Preview</em>
+        </a>
+      </div>
+
+      <div class="platform-foot">
+        <div class="more-tools">Also in development: <a href="/doors">Doors</a> · <a href="/kitchen">Kitchen</a></div>
+        <a class="platform-cta" href="/products">Explore SketchUp plugins <span>→</span></a>
+      </div>
+    </article>
+
+    <article class="platform-panel blender-panel" id="blender">
+      <div class="panel-glow" aria-hidden="true"></div>
+      <header class="platform-head">
+        <div class="platform-title-lockup">
+          <span class="platform-mark bl-mark"><img src="/assets/blender-mark.svg" alt=""></span>
+          <div>
+            <div class="panel-kicker">Asset production</div>
+            <h2>Blender<br>Add-ons</h2>
+          </div>
+        </div>
+        <p class="platform-tagline">Generate. Customize. Produce.</p>
+        <p>Procedural asset generators for product design, interiors and environment production in Blender.</p>
+      </header>
+
+      <div class="tool-card-grid blender-tools">
+        <div class="tool-card pending">
+          <div class="blender-object refrigerator" aria-hidden="true"><i></i><b></b></div>
+          <div><strong>Refrigerator Gen</strong><span>Procedural refrigerators</span></div>
+          <em>In development</em>
+        </div>
+        <div class="tool-card pending">
+          <div class="blender-object oven" aria-hidden="true"><i></i><b></b></div>
+          <div><strong>Oven Gen</strong><span>Modular ovens and stoves</span></div>
+          <em>In development</em>
+        </div>
+        <div class="tool-card pending">
+          <div class="blender-object cabinet" aria-hidden="true"><i></i><b></b></div>
+          <div><strong>Cabinet Gen</strong><span>Kitchens and storage systems</span></div>
+          <em>Planned</em>
+        </div>
+        <div class="tool-card pending">
+          <div class="blender-object asset-orb" aria-hidden="true"><i></i><b></b></div>
+          <div><strong>Asset Generators</strong><span>Props, furniture and more</span></div>
+          <em>Research</em>
+        </div>
+      </div>
+
+      <div class="platform-foot">
+        <div class="more-tools">A new Structura family focused on high-detail procedural assets.</div>
+        <a class="platform-cta" href="#blender-roadmap">Explore Blender roadmap <span>→</span></a>
+      </div>
+    </article>
+  </div>
+</section>
+
+<section class="production-dna">
+  <div class="wrap">
+    <div class="dna-head">
+      <div>
+        <div class="kicker">One ecosystem</div>
+        <h2>Different software.<br>Same production logic.</h2>
+      </div>
+      <p>Structura is designed around the work that repeats: configure once, keep the result editable, regenerate when the project changes and reuse the same system across production.</p>
+    </div>
+    <div class="dna-grid">
+      <article><span>01</span><h3>Procedural</h3><p>Generate complex architectural and product systems from focused inputs.</p></article>
+      <article><span>02</span><h3>Editable</h3><p>Keep dimensions, components and logic adjustable after generation.</p></article>
+      <article><span>03</span><h3>Production ready</h3><p>Build tools for actual scenes, not one-off demonstrations.</p></article>
+      <article><span>04</span><h3>Consistent</h3><p>Shared interaction patterns and a recognisable Structura product language.</p></article>
+    </div>
+  </div>
+</section>
+
+<section class="launch-band">
+  <div class="wrap launch-grid">
+    <article class="launch-card floor-launch">
+      <div class="launch-copy">
+        <div class="launch-label">Start free · SketchUp</div>
+        <h2>Floor &amp; Wall.</h2>
+        <p>Generate procedural floors and wall coverings with real geometry, clipping and controlled materials.</p>
+        <a class="prod-btn blue" href="/floor-wall#download">Download free <span>→</span></a>
+      </div>
+      <img src="/assets/floor-wall-logo-current.png" alt="Structura Floor & Wall">
+    </article>
+    <article class="launch-card windows-launch">
+      <div class="launch-copy">
+        <div class="launch-label">Current commercial release</div>
+        <h2>Windows.</h2>
+        <p>Complete procedural window systems: openings, frames, hardware, decoration and materials.</p>
+        <a class="prod-btn blue" href="/windows">Explore Windows <span>→</span></a>
+      </div>
+      <img src="/assets/structura-windows-logo-official.png" alt="Structura Windows">
+    </article>
+  </div>
+</section>
+
+<section class="blender-roadmap" id="blender-roadmap">
+  <div class="wrap roadmap-grid">
     <div>
-      <div class="kicker">Structura Tools · SketchUp</div>
-      <h1 class="display">STRUCTURA<span>Procedural tools for SketchUp.</span></h1>
-      <p class="eco-hero-copy">Build architectural elements faster with editable procedural tools designed for real production workflows.</p>
-      <div class="btn-row">
-        <a class="btn-primary" href="/floor-wall#download">Download Floor &amp; Wall — Free</a>
-        <a class="btn-secondary" href="/products">Explore Structura Tools</a>
-      </div>
+      <div class="kicker">Blender roadmap</div>
+      <h2>From architecture tools<br>to procedural asset systems.</h2>
     </div>
-    <div class="hero-collage" aria-label="Structura product ecosystem">
-      <div class="hero-orbit"></div>
-      <a class="hero-tile floor" href="/floor-wall"><img src="/assets/floor-wall-logo-current.png" alt="Structura Floor & Wall"><span class="hero-product-name">Floor &amp; Wall</span></a>
-      <a class="hero-tile windows" href="/windows"><img src="/assets/structura-windows-logo-official.png" alt="Structura Windows"><span class="hero-product-name">Windows</span></a>
-      <a class="hero-tile road" href="/road-click"><img src="/assets/road-click-safe.png" alt="Structura Road Click"><span class="hero-product-name">Road Click</span></a>
-      <a class="hero-tile buildings" href="/buildings"><img src="/assets/buildings-safe.png" alt="Structura Buildings"><span class="hero-product-name">Buildings</span></a>
-      <div class="hero-micro"><strong>One ecosystem</strong><span>Shared workflows. Independent tools.</span></div>
-    </div>
-  </div>
-</section>
-
-<section class="section soft" id="products">
-  <div class="wrap">
-    <div class="section-head">
-      <div><div class="kicker">Product ecosystem</div><h2 class="section-title">One workflow. Multiple tools.</h2></div>
-      <p class="section-copy">Start with a focused tool and expand as the project demands. Structura is designed as a coherent system, not a collection of unrelated extensions.</p>
-    </div>
-    <div class="product-mosaic">
-      <article class="product-card featured">
-        <div class="product-card-top"><span class="status-pill">Free</span></div>
-        <img class="product-card-logo" src="/assets/floor-wall-logo-current.png" alt="Floor & Wall">
-        <h3>Floor &amp; Wall</h3>
-        <p>Procedural floors and wall coverings with real geometry, clipping and controlled materials.</p>
-        <a class="product-card-link" href="/floor-wall#download">Download free →</a>
-      </article>
-      <article class="product-card">
-        <div class="product-card-top"><img class="product-card-logo" src="/assets/structura-windows-logo-official.png" alt="Windows"><span class="status-pill">Early Access</span></div>
-        <h3>Windows</h3>
-        <p>Complete procedural window systems: openings, frames, handles, shutters, decoration and materials.</p>
-        <a class="product-card-link" href="/windows">Explore →</a>
-      </article>
-      <article class="product-card">
-        <div class="product-card-top"><img class="product-card-logo" src="/assets/structura-doors-logo-official.png" alt="Structura Doors"><span class="status-pill">Coming soon</span></div>
-        <h3>Doors</h3>
-        <p>Procedural architectural doors built around the same Structura workflow.</p>
-        <a class="product-card-link" href="/doors">Discover →</a>
-      </article>
-      <article class="product-card road">
-        <div class="product-card-top"><img class="product-card-logo" src="/assets/road-click-safe.png" alt="Road Click"><span class="status-pill">Preview</span></div>
-        <h3>Road Click</h3>
-        <p>Procedural road networks, intersections, sidewalks, markings and urban assets.</p>
-        <a class="product-card-link" href="/road-click">Preview →</a>
-      </article>
-      <article class="product-card buildings">
-        <div class="product-card-top"><img class="product-card-logo" src="/assets/buildings-safe.png" alt="Buildings"><span class="status-pill">In development</span></div>
-        <h3>Buildings</h3>
-        <p>Turn footprints into complete architectural building systems.</p>
-        <a class="product-card-link" href="/buildings">Preview →</a>
-      </article>
-      <article class="product-card">
-        <div class="product-card-top"><img class="product-card-logo" src="/assets/structura-kitchen-logo-official.png" alt="Structura Kitchen"><span class="status-pill">In development</span></div>
-        <h3>Kitchen</h3>
-        <p>Parametric kitchens, cabinetry and appliance workflows for SketchUp interiors.</p>
-        <a class="product-card-link" href="/kitchen">Preview →</a>
-      </article>
-    </div>
-  </div>
-</section>
-
-<section class="section">
-  <div class="wrap">
-    <div class="section-head">
-      <div><div class="kicker">Why Structura</div><h2 class="section-title">Built for production. Not demos.</h2></div>
-      <p class="section-copy">The useful part of procedural modeling is not generating something once. It is being able to edit, regenerate and reuse it throughout production.</p>
-    </div>
-    <div class="pillar-grid">
-      <article class="pillar"><b>01 / PROCEDURAL</b><h3>Generate from simple inputs</h3><p>Turn surfaces, openings, paths and footprints into detailed architectural systems.</p></article>
-      <article class="pillar"><b>02 / EDITABLE</b><h3>Keep control</h3><p>Change dimensions and parameters without rebuilding the work manually.</p></article>
-      <article class="pillar"><b>03 / VISUAL</b><h3>Guided workflows</h3><p>Consistent, visual interfaces reduce friction across the whole suite.</p></article>
-      <article class="pillar"><b>04 / MATERIALS</b><h3>Production materials</h3><p>Curated material workflows designed for SketchUp and rendering pipelines.</p></article>
-      <article class="pillar"><b>05 / SYSTEM</b><h3>Shared logic</h3><p>Tools share interaction patterns, infrastructure and a common product language.</p></article>
-    </div>
-  </div>
-</section>
-
-<section class="section dark">
-  <div class="wrap">
-    <div class="section-head">
-      <div><div class="kicker">Shared workflow</div><h2 class="section-title">Same logic across Structura.</h2></div>
-      <p class="section-copy">Learn one Structura tool and the next one should already feel familiar.</p>
-    </div>
-    <div class="workflow-strip">
-      <article class="workflow-step"><span>01</span><h3>Select</h3><p>Start from real SketchUp geometry: surfaces, openings, paths or footprints.</p></article>
-      <article class="workflow-step"><span>02</span><h3>Configure</h3><p>Define the architectural system with focused, parametric controls.</p></article>
-      <article class="workflow-step"><span>03</span><h3>Materials</h3><p>Choose and manage materials inside the same guided flow.</p></article>
-      <article class="workflow-step"><span>04</span><h3>Generate</h3><p>Create editable geometry and return later to modify or regenerate it.</p></article>
-    </div>
-    <div class="workflow-proof">
-      <article><b>Floor &amp; Wall</b><span>Surface → Pattern → Materials → Generate</span></article>
-      <article><b>Windows</b><span>Opening → Configuration → Materials → Generate</span></article>
-      <article><b>Doors</b><span>Opening → Door system → Materials → Generate</span></article>
-    </div>
-  </div>
-</section>
-
-<section class="section" id="floor">
-  <div class="wrap spotlight">
-    <div class="spotlight-visual"><img src="/assets/floor-wall-logo-current.png" alt="Structura Floor & Wall"></div>
-    <div class="spotlight-copy">
-      <div class="kicker">Start free</div>
-      <h2>Structura Floor &amp; Wall.</h2>
-      <p>Generate detailed flooring and wall patterns directly inside SketchUp using an intuitive procedural workflow.</p>
-      <ul>
-        <li>Procedural patterns</li><li>Editable parameters</li><li>Material library</li><li>Texture controls</li><li>Bevel and thickness</li><li>Clipping</li>
-      </ul>
-      <div class="btn-row" style="margin-top:30px"><a class="btn-primary" href="/floor-wall#download">Get Floor &amp; Wall — Free</a></div>
-      <p style="font-size:13px;margin-top:12px">Free. No trial. No subscription.</p>
-    </div>
-  </div>
-</section>
-
-<section class="section soft" id="windows">
-  <div class="wrap spotlight reverse">
-    <div class="spotlight-visual dark"><img src="/assets/structura-windows-logo-official.png" alt="Structura Windows"></div>
-    <div class="spotlight-copy">
-      <div class="kicker">Commercial release</div>
-      <h2>Structura Windows.</h2>
-      <p>Go from a wall opening to a complete procedural window system, then clone, edit and regenerate it as the project evolves.</p>
-      <div class="price-lockup"><strong>€29</strong><s>€49</s><span>Early Access</span></div>
-      <div class="btn-row" style="margin-top:28px">
-        <a class="btn-dark" href="https://structuratools.gumroad.com/l/StructuraWindows" target="_blank" rel="noopener">Get Structura Windows</a>
-        <a class="btn-secondary" href="/windows">Learn more</a>
+    <div class="roadmap-copy">
+      <p>The Blender line extends Structura into high-detail product and interior asset generation. Refrigerator Gen and Oven Gen are the first systems being defined around modular, first-close-up-quality components.</p>
+      <div class="roadmap-status">
+        <span><b>Refrigerator Gen</b> · In development</span>
+        <span><b>Oven Gen</b> · In development</span>
+        <span><b>Cabinet Gen</b> · Planned</span>
       </div>
     </div>
   </div>
 </section>
 
-<section class="section">
-  <div class="wrap">
-    <div class="section-head">
-      <div><div class="kicker">What's next</div><h2 class="section-title">Doors and Kitchen.</h2></div>
-      <p class="section-copy">The ecosystem expands into adjacent architectural workflows without changing the way users think about Structura.</p>
+<section class="final-production-cta">
+  <div class="wrap final-production-inner">
+    <div>
+      <div class="kicker">Structura Tools</div>
+      <h2>Build systems.<br>Not repetitive geometry.</h2>
+      <p>Start with the SketchUp tools available today and follow the Blender add-on line as it develops.</p>
     </div>
-    <div class="future-grid">
-      <article class="future-card"><span class="status-pill">Coming soon</span><h3>Structura Doors</h3><p>Architectural doors, openings, hardware and decoration using the same product logic as Windows.</p><a class="product-card-link" href="/doors">Discover Doors →</a></article>
-      <article class="future-card"><span class="status-pill">In development</span><h3>Structura Kitchen</h3><p>Cabinet systems, fronts, appliances and configurable kitchen layouts for production interiors.</p><a class="product-card-link" href="/kitchen">Preview Kitchen →</a></article>
-    </div>
-  </div>
-</section>
-
-<section class="section soft">
-  <div class="wrap">
-    <div class="section-head">
-      <div><div class="kicker">Advanced systems</div><h2 class="section-title">From tools to complete environments.</h2></div>
-      <p class="section-copy">Road Click and Buildings extend the same procedural philosophy from architectural elements to networks and whole buildings.</p>
-    </div>
-    <div class="advanced-grid">
-      <article class="advanced-card"><img src="/assets/road-click-safe.png" alt="Road Click"><h3>Road Click</h3><p>Turn connected paths into complete streets, intersections and urban infrastructure.</p><a href="/road-click">Preview Road Click →</a></article>
-      <article class="advanced-card"><img src="/assets/buildings-safe.png" alt="Buildings"><h3>Buildings</h3><p>Turn footprints into varied architectural systems with façades, roofs and style-specific rules.</p><a href="/buildings">Preview Buildings →</a></article>
-    </div>
-  </div>
-</section>
-
-<section class="section" id="about">
-  <div class="wrap">
-    <div class="section-head">
-      <div><div class="kicker">Built for SketchUp</div><h2 class="section-title">Tools shaped by real production.</h2></div>
-      <p class="section-copy">Structura is built around recurring architectural visualization problems: repetitive geometry, brittle manual workflows and systems that should stay editable.</p>
-    </div>
-    <div class="resource-grid">
-      <article class="resource-card"><h3>Learn</h3><p>Getting started guides, tutorials and product workflows.</p><a href="/learn">Explore learning resources →</a></article>
-      <article class="resource-card"><h3>Documentation</h3><p>Compatibility, materials, parameters and production guidance.</p><a href="/docs">Open documentation →</a></article>
-      <article class="resource-card"><h3>Support</h3><p>Troubleshooting first, direct contact when it is actually needed.</p><a href="/support">Get support →</a></article>
-    </div>
-  </div>
-</section>
-
-<section class="final-cta">
-  <div class="wrap">
-    <div class="final-cta-card">
-      <div><div class="kicker" style="color:#71edf6">Start with Structura</div><h2>Floor &amp; Wall is free.</h2><p>Experience the workflow before buying another Structura product.</p></div>
-      <a class="btn-primary" href="/floor-wall#download">Download Floor &amp; Wall</a>
+    <div class="btn-row">
+      <a class="prod-btn blue" href="/floor-wall#download">Start with Floor &amp; Wall <span>→</span></a>
+      <a class="prod-btn orange" href="#blender">See Blender add-ons <span>→</span></a>
     </div>
   </div>
 </section>
 </main>
+
 <div data-site-footer></div>
 <script src="/site-shell.js" defer></script>
 <script src="/site-i18n.js" defer></script>
 <script src="/site-i18n-nav-fix.js" defer></script>
+<script src="/home-i18n.js" defer></script>
 </body>
 </html>
