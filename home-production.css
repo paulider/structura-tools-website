@@ -288,6 +288,9 @@ body[data-page="home"] .footer-bottom{border-top-color:rgba(255,255,255,.08);col
 .dishwasher i{position:absolute;left:10px;right:10px;top:10px;bottom:10px;border-radius:5px;background:linear-gradient(90deg,#9ba5af,#444b54)}
 .dishwasher i:before{content:"";position:absolute;left:6px;right:6px;top:7px;height:8px;border-radius:2px;background:#343a41}
 .dishwasher b{position:absolute;left:18px;right:18px;top:27px;height:3px;border-radius:2px;background:#dde3e8}
+.kitchen i{position:absolute;left:9px;right:9px;top:16px;bottom:11px;border-radius:4px;background:linear-gradient(90deg,#8f6748 0 48%,#b7865e 48% 52%,#8f6748 52%)}
+.kitchen i:before{content:"";position:absolute;left:0;right:0;top:-7px;height:6px;border-radius:3px;background:#c6b09c}
+.kitchen b{position:absolute;left:39px;top:31px;width:4px;height:18px;border-radius:2px;background:#2b1b12}
 .asset-orb{background:radial-gradient(circle at 50% 55%,#5a2c13 0 14%,#201006 15% 45%,#0e0b0a 46%)}
 .asset-orb i,.asset-orb b{position:absolute;border:1px solid #d77433;border-radius:50%;inset:13px}
 .asset-orb b{inset:22px 10px}
