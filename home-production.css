@@ -285,8 +285,9 @@ body[data-page="home"] .footer-bottom{border-top-color:rgba(255,255,255,.08);col
 .refrigerator b{position:absolute;right:24px;top:22px;width:2px;height:20px;background:#dde3e8}
 .oven i{position:absolute;left:10px;right:10px;top:11px;height:14px;background:#656b72;border-radius:4px}
 .oven b{position:absolute;left:12px;right:12px;top:31px;bottom:12px;border:3px solid #717982;background:#090b0e;border-radius:5px}
-.cabinet i{position:absolute;left:10px;right:10px;top:15px;bottom:12px;background:linear-gradient(90deg,#8c6749 0 49%,#b88960 49%);border-radius:3px}
-.cabinet b{position:absolute;left:39px;top:34px;width:4px;height:4px;border-radius:50%;background:#161616}
+.dishwasher i{position:absolute;left:10px;right:10px;top:10px;bottom:10px;border-radius:5px;background:linear-gradient(90deg,#9ba5af,#444b54)}
+.dishwasher i:before{content:"";position:absolute;left:6px;right:6px;top:7px;height:8px;border-radius:2px;background:#343a41}
+.dishwasher b{position:absolute;left:18px;right:18px;top:27px;height:3px;border-radius:2px;background:#dde3e8}
 .asset-orb{background:radial-gradient(circle at 50% 55%,#5a2c13 0 14%,#201006 15% 45%,#0e0b0a 46%)}
 .asset-orb i,.asset-orb b{position:absolute;border:1px solid #d77433;border-radius:50%;inset:13px}
 .asset-orb b{inset:22px 10px}
