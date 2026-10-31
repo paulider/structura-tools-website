@@ -8,51 +8,41 @@
 <link rel="icon" href="/assets/structura-logo-final.png">
 <link rel="stylesheet" href="/ecosystem.css">
 <link rel="stylesheet" href="/home-production.css">
+<link rel="stylesheet" href="/road-click-launch.css">
 </head>
-<body data-page="home">
+<body class="road-home" data-page="home">
 <div data-site-header></div>
 
 <main>
-<section class="prod-hero">
-  <div class="prod-grid-overlay" aria-hidden="true"></div>
-  <div class="wrap prod-hero-grid">
-    <div class="prod-copy">
-      <div class="kicker">Structura Tools · SketchUp + Blender</div>
-      <h1>Procedural tools<br><span>for 3D production.</span></h1>
-      <p>Powerful plugins and add-ons for architecture and asset production — built around repeatable workflows, editable systems and production-ready output.</p>
-      <div class="btn-row prod-actions">
-        <a class="prod-btn blue" href="#sketchup">SketchUp plugins <span>→</span></a>
-        <a class="prod-btn orange" href="#blender">Blender add-ons <span>→</span></a>
+<section class="rc-hero">
+  <div class="wrap rc-hero-grid">
+    <div>
+      <div class="rc-badge-row"><span class="rc-badge">Structura for SketchUp</span><span class="rc-badge">Early Access</span><span class="rc-badge">Now launching</span></div>
+      <h1 class="rc-title">ROAD CLICK<span>Procedural roads for SketchUp.</span></h1>
+      <p class="rc-lead">Draw roads, connect intersections and generate complete street systems directly inside SketchUp. Road Click is the current Structura launch.</p>
+      <div class="rc-price"><strong>€69</strong><s>€99</s><span>Early Access</span></div>
+      <div class="rc-actions">
+        <a class="rc-btn primary" href="/road-click">Explore Road Click →</a>
+        <a class="rc-btn secondary" href="#road-video">Watch the video</a>
       </div>
-      <div class="prod-proof" aria-label="Structura product principles">
-        <div><span class="proof-icon">◇</span><strong>Parametric workflows</strong></div>
-        <div><span class="proof-icon">▱</span><strong>Editable systems</strong></div>
-        <div><span class="proof-icon">⌁</span><strong>Production ready</strong></div>
-      </div>
+      <span class="rc-small">Early Access launch price. Regular price €99.</span>
     </div>
-
-    <div class="atom-stage" aria-label="Structura ecosystem connecting SketchUp and Blender">
-      <div class="atom-grid" aria-hidden="true"></div>
-      <div class="orbit orbit-a" aria-hidden="true"></div>
-      <div class="orbit orbit-b" aria-hidden="true"></div>
-      <div class="orbit orbit-c" aria-hidden="true"></div>
-
-      <div class="atom-core">
-        <span class="core-halo" aria-hidden="true"></span>
-        <img src="/assets/structura-logo-final.png" alt="Structura Tools">
+    <div class="rc-hero-media" id="road-video">
+      <div class="rc-logo-float"><img src="/assets/road-click-safe.png" alt="Structura Road Click"></div>
+      <div class="video-shell">
+        <iframe src="https://www.youtube.com/embed/OkhdnBWKPgQ?rel=0&modestbranding=1" title="Structura Road Click launch video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="eager"></iframe>
       </div>
-
-      <div class="platform-node node-su">
-        <img src="/assets/sketchup-mark.svg" alt="SketchUp">
-        <span>SketchUp</span>
-      </div>
-      <div class="platform-node node-bl">
-        <img src="/assets/blender-mark.svg" alt="Blender">
-        <span>Blender</span>
-      </div>
+      <div class="rc-demo-label"><b>Road Click in SketchUp</b><span>Launch video</span></div>
     </div>
   </div>
 </section>
+
+<section class="rc-proof"><div class="wrap rc-proof-grid">
+  <article><span>01 / DRAW</span><b>Draw the network</b><p>Click the road path directly in SketchUp.</p></article>
+  <article><span>02 / CONNECT</span><b>Resolve intersections</b><p>Build connected nodes and junctions.</p></article>
+  <article><span>03 / DETAIL</span><b>Generate complete streets</b><p>Roads, sidewalks, markings and infrastructure.</p></article>
+  <article><span>04 / LAUNCH</span><b>Early Access €69</b><p>Regular price €99.</p></article>
+</div></section>
 
 <section class="platforms-section" aria-label="Structura product families">
   <div class="wrap platform-split">
@@ -89,7 +79,7 @@
         <a class="tool-card" href="/road-click">
           <img src="/assets/road-click-safe.png" alt="Road Click">
           <div><strong>Road Click</strong><span>Roads and infrastructure</span></div>
-          <em>Preview</em>
+          <em>Early Access · €69</em>
         </a>
       </div>
 
@@ -154,23 +144,24 @@
 
 <section class="launch-band">
   <div class="wrap launch-grid">
+    <article class="launch-card windows-launch">
+      <div class="launch-copy">
+        <div class="launch-label">Now launching · SketchUp</div>
+        <h2>Road Click.</h2>
+        <p>Procedural road networks, intersections, sidewalks, markings and urban infrastructure.</p>
+        <div style="display:flex;align-items:baseline;gap:10px;margin:18px 0 22px"><strong style="font-size:42px">€69</strong><s style="color:#7794a2">€99</s></div>
+        <a class="prod-btn blue" href="/road-click">Explore Early Access <span>→</span></a>
+      </div>
+      <img src="/assets/road-click-safe.png" alt="Structura Road Click">
+    </article>
     <article class="launch-card floor-launch">
       <div class="launch-copy">
         <div class="launch-label">Start free · SketchUp</div>
         <h2>Floor &amp; Wall.</h2>
-        <p>Generate procedural floors and wall coverings with real geometry, clipping and controlled materials.</p>
+        <p>The free entry point to the Structura workflow for procedural floors and wall coverings.</p>
         <a class="prod-btn blue" href="/floor-wall#download">Download free <span>→</span></a>
       </div>
       <img src="/assets/floor-wall-logo-current.png" alt="Structura Floor & Wall">
-    </article>
-    <article class="launch-card windows-launch">
-      <div class="launch-copy">
-        <div class="launch-label">Current commercial release</div>
-        <h2>Windows.</h2>
-        <p>Complete procedural window systems: openings, frames, hardware, decoration and materials.</p>
-        <a class="prod-btn blue" href="/windows">Explore Windows <span>→</span></a>
-      </div>
-      <img src="/assets/structura-windows-logo-official.png" alt="Structura Windows">
     </article>
   </div>
 </section>
