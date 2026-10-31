@@ -12,7 +12,7 @@
     header.innerHTML='<header class="site-nav"><div class="wrap site-nav-inner navin">'+
       '<a class="site-brand" href="/"><img src="/assets/structura-logo-final.png" alt="Structura Tools"><span>STRUCTURA<br>TOOLS</span></a>'+
       '<nav class="site-links" aria-label="Primary">'+navItems.map(([id,href,label])=>'<a href="'+href+'"'+(page===id?' aria-current="page"':'')+'>'+label+'</a>').join('')+'</nav>'+
-      '<a class="site-cta nav-launch" href="/floor-wall#download">Floor &amp; Wall — Free ↓</a>'+
+      '<a class="site-cta nav-launch" href="/road-click">Road Click — €69 Early Access</a>'+
     '</div></header>';
   }
   if(footer){
