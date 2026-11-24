@@ -106,8 +106,8 @@ a{color:inherit;text-decoration:none}button{font:inherit;cursor:pointer}img{max-
 .talos-stat>div{text-align:center;padding:26px 12px;border-right:1px solid var(--st-line);font-size:12px;font-weight:850}
 .talos-stat>div:last-child{border-right:0}
 .talos-catalog{display:grid;grid-template-columns:repeat(3,1fr);gap:17px}
-.talos-catalog .product-card.featured{grid-column:span 2;min-height:370px}
-.talos-catalog .featured img.logo{width:170px;height:170px}
+.talos-catalog .product-card.featured{min-height:330px}
+.talos-catalog .featured img.logo{width:125px;height:125px}
 .talos-catalog .featured .bottom{margin-top:auto}
 .talos-free{display:grid;grid-template-columns:1fr .8fr;gap:40px;align-items:center;border:1px solid var(--st-line);border-radius:30px;background:white;padding:36px}
 .talos-free img{width:195px;height:195px;object-fit:contain;margin:auto}
@@ -203,7 +203,7 @@ body.platform{background:#031c2a;color:#fff}
  .nav-links{display:none}.nav-cta{margin-left:auto}
  .section-head{grid-template-columns:1fr;gap:5px}
  .cards-3,.talos-catalog,.kestrel-catalog{grid-template-columns:repeat(2,1fr)}
- .talos-catalog .product-card.featured{grid-column:span 2}
+ 
  .talos-stat,.metric-row,.workflow{grid-template-columns:repeat(2,1fr)}
  .talos-free{grid-template-columns:1fr}.talos-free img{margin:0 auto}
  .product-tabs{grid-template-columns:repeat(3,1fr)}
@@ -221,7 +221,7 @@ body.platform{background:#031c2a;color:#fff}
  .display{font-size:50px}
  .price strong{font-size:41px}
  .cards-3,.talos-catalog,.kestrel-catalog,.workflow,.talos-stat,.metric-row{grid-template-columns:1fr}
- .talos-catalog .product-card.featured{grid-column:auto}
+ 
  .talos-stat>div{border-right:0;border-bottom:1px solid var(--st-line)}
  .metric-row>div{border-right:0;border-bottom:1px solid rgba(255,255,255,.12)}
  .product-card{min-height:280px}
@@ -243,3 +243,7 @@ body.platform{background:#031c2a;color:#fff}
  .bottom-cta .btn{margin-top:24px}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+
+/* Explicit hidden behavior for interactive selector and video buttons */
+[hidden]{display:none!important}
+.platform-panel .demo{aspect-ratio:16/9;min-height:230px}
