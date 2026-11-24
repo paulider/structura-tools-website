@@ -11,7 +11,7 @@ img{display:block;max-width:100%}
 .sc-wrap{width:min(var(--max),calc(100% - 88px));margin:auto}
 .sc-fine{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:500;letter-spacing:-.01em;font-size:11px;text-transform:uppercase}
 .sc-index{color:#87918b}
-.sc-nav{position:absolute;z-index:90;top:0;left:0;right:0;color:white}
+.sc-nav{position:absolute;z-index:120;top:0;left:0;right:0;color:white}
 .sc-nav-inner{height:88px;display:flex;align-items:center;gap:36px;border-bottom:1px solid rgba(255,255,255,.38)}
 .sc-wordmark{display:inline-flex;align-items:center;gap:9px;min-width:210px;font-size:23px;line-height:1;font-weight:900;letter-spacing:-.065em}
 .sc-wordmark img{width:35px;height:35px;object-fit:contain}
@@ -167,7 +167,7 @@ img{display:block;max-width:100%}
  .sc-wordmark{min-width:0;font-size:21px}
  .sc-nav-links,.sc-nav-cta{display:none}
  .sc-nav-toggle{display:block;margin-left:auto}
- .sc-mobile-nav{position:fixed;z-index:95;inset:0;background:#081418;color:#fff;display:flex;flex-direction:column;gap:18px;padding:108px 30px 35px;transform:translateX(105%);transition:transform .3s ease}
+ .sc-mobile-nav{position:fixed;z-index:110;inset:0;background:#081418;color:#fff;display:flex;flex-direction:column;gap:18px;padding:108px 30px 35px;transform:translateX(105%);transition:transform .3s ease}
  .menu-open .sc-mobile-nav{transform:translateX(0)}
  .sc-mobile-nav a{font-size:clamp(35px,8vw,60px);font-weight:800;letter-spacing:-.07em;line-height:1.03;border-bottom:1px solid #27393f;padding-bottom:17px}
  .sc-mobile-nav a:last-child{font-size:19px;letter-spacing:0;background:#01bedf;color:#081418;border:0;padding:20px;margin-top:18px}
